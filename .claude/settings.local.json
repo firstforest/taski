@@ -6,7 +6,11 @@
       "Bash(dir node_modules.bintsc*)",
       "Bash(node node_modules/typescript/bin/tsc:*)",
       "Bash(node:*)",
-      "Bash(npm run compile:*)"
+      "Bash(npm run compile:*)",
+      "Bash(npm test:*)",
+      "Bash(npx vscode-test)",
+      "Skill(commit)",
+      "Skill(commit:*)"
     ]
   }
 }
