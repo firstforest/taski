@@ -21,11 +21,13 @@ Tests require compilation to `out/` first (`npm run compile-tests`), but `npm ru
 
 Single-command extension (`daily-task-logger.showToday`) in one main source file:
 
-- **`src/extension.ts`** — contains two key parts:
-  1. **`parseTasks(lines, targetDate)`** — pure function (no VS Code dependency) that parses task checkboxes and their date-prefixed log entries from raw text lines. Exported for direct unit testing.
-  2. **`TodaysTaskProvider`** class — implements `TextDocumentContentProvider` for the `daily-tasks://` URI scheme. Scans all `.md` files in the workspace, delegates parsing to `parseTasks`, and renders a virtual markdown document with per-file sections and line-linked task entries.
+- **`src/extension.ts`** — contains these key parts:
+  1. **`parseTasks(lines, targetDate)`** — pure function (no VS Code dependency) that parses task checkboxes and their date-prefixed log entries for a specific date. Exported for direct unit testing.
+  2. **`parseTasksAllDates(lines)`** — pure function that parses all tasks and log entries across all dates. Tasks without any log entries are returned with `date: ''` and `log: ''`. Exported for direct unit testing.
+  3. **`collectAllTasks()`** — scans all `.md` files in the workspace, delegates parsing to `parseTasksAllDates`, and returns a `Map<string, FileTaskGroup[]>` keyed by date string.
+  4. **`buildHtml(todayStr)`** — renders the Webview HTML with tasks grouped by date: today first, then other dates in reverse chronological order, then tasks with no date.
 
-- **`src/test/parseTasks.test.ts`** — Mocha unit tests for the `parseTasks` function (12 test cases covering date filtering, indentation rules, nested tasks, edge cases).
+- **`src/test/parseTasks.test.ts`** — Mocha unit tests for `parseTasks` and `parseTasksAllDates` (19 test cases covering date filtering, indentation rules, nested tasks, no-date tasks, edge cases).
 - **`src/test/extension.test.ts`** — Placeholder integration test suite.
 
 The extension has no runtime dependencies beyond the VS Code API. The `vscode` module is marked external in esbuild since VS Code provides it at runtime.
@@ -39,9 +41,10 @@ The extension parses this structure in `.md` files:
     - 2026-02-01: Log entry for this date
 - [ ] Another task
     - 2026-02-01: Log entry
+- [ ] Task with no logs
 ```
 
-Log lines must be indented deeper than their parent task line. Only logs matching the target date appear in the output.
+Log lines must be indented deeper than their parent task line. Tasks are displayed grouped by date (today first, then newest to oldest). Tasks without any log entries appear under a "日付なし" section.
 
 ## Build Configuration
 
