@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { parseTasks } from '../extension';
+import { parseTasks, parseTasksAllDates } from '../extension';
 
 suite('parseTasks', () => {
 
@@ -136,5 +136,86 @@ suite('parseTasks', () => {
 		assert.strictEqual(result.length, 1);
 		assert.strictEqual(result[0].text, '子タスク');
 		assert.strictEqual(result[0].log, '子のログ');
+	});
+});
+
+suite('parseTasksAllDates', () => {
+
+	test('全日付のタスクを抽出する', () => {
+		const lines = [
+			'- [ ] タスクA',
+			'    - 2026-01-31: 昨日のログ',
+			'    - 2026-02-01: 今日のログ',
+			'    - 2026-02-02: 明日のログ',
+		];
+		const result = parseTasksAllDates(lines);
+		assert.strictEqual(result.length, 3);
+		assert.strictEqual(result[0].date, '2026-01-31');
+		assert.strictEqual(result[0].log, '昨日のログ');
+		assert.strictEqual(result[1].date, '2026-02-01');
+		assert.strictEqual(result[1].log, '今日のログ');
+		assert.strictEqual(result[2].date, '2026-02-02');
+		assert.strictEqual(result[2].log, '明日のログ');
+	});
+
+	test('複数タスク・複数日付を抽出する', () => {
+		const lines = [
+			'- [ ] タスク1',
+			'    - 2026-02-01: ログ1',
+			'- [x] タスク2',
+			'    - 2026-01-30: ログ2',
+		];
+		const result = parseTasksAllDates(lines);
+		assert.strictEqual(result.length, 2);
+		assert.strictEqual(result[0].text, 'タスク1');
+		assert.strictEqual(result[0].date, '2026-02-01');
+		assert.strictEqual(result[1].text, 'タスク2');
+		assert.strictEqual(result[1].date, '2026-01-30');
+	});
+
+	test('インデントが浅いログ行は無視され、タスクは日付なしで返る', () => {
+		const lines = [
+			'    - [ ] タスク（インデント4）',
+			'    - 2026-02-01: 同レベルのログ',
+		];
+		const result = parseTasksAllDates(lines);
+		assert.strictEqual(result.length, 1);
+		assert.strictEqual(result[0].text, 'タスク（インデント4）');
+		assert.strictEqual(result[0].date, '');
+		assert.strictEqual(result[0].log, '');
+	});
+
+	test('空の入力は空配列を返す', () => {
+		const result = parseTasksAllDates([]);
+		assert.strictEqual(result.length, 0);
+	});
+
+	test('ログ行がないタスクは日付なしで返る', () => {
+		const lines = [
+			'- [ ] ログなしタスク',
+		];
+		const result = parseTasksAllDates(lines);
+		assert.strictEqual(result.length, 1);
+		assert.strictEqual(result[0].text, 'ログなしタスク');
+		assert.strictEqual(result[0].date, '');
+		assert.strictEqual(result[0].log, '');
+	});
+
+	test('ログありとログなしのタスクが混在する場合', () => {
+		const lines = [
+			'- [ ] タスク1',
+			'    - 2026-02-01: ログ1',
+			'- [ ] タスク2',
+			'- [x] タスク3',
+			'    - 2026-01-30: ログ3',
+		];
+		const result = parseTasksAllDates(lines);
+		assert.strictEqual(result.length, 3);
+		assert.strictEqual(result[0].text, 'タスク1');
+		assert.strictEqual(result[0].date, '2026-02-01');
+		assert.strictEqual(result[1].text, 'タスク2');
+		assert.strictEqual(result[1].date, '');
+		assert.strictEqual(result[2].text, 'タスク3');
+		assert.strictEqual(result[2].date, '2026-01-30');
 	});
 });

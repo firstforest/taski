@@ -8,6 +8,10 @@ export interface ParsedTask {
 	log: string;
 }
 
+export interface ParsedTaskWithDate extends ParsedTask {
+	date: string;
+}
+
 export function parseTasks(lines: string[], targetDate: string): ParsedTask[] {
 	const tasks: ParsedTask[] = [];
 	let currentTask: { indent: number; completed: boolean; text: string; line: number } | null = null;
@@ -42,6 +46,69 @@ export function parseTasks(lines: string[], targetDate: string): ParsedTask[] {
 			}
 		}
 	}
+	return tasks;
+}
+
+export function parseTasksAllDates(lines: string[]): ParsedTaskWithDate[] {
+	const tasks: ParsedTaskWithDate[] = [];
+	let currentTask: { indent: number; completed: boolean; text: string; line: number } | null = null;
+	let currentTaskHasLog = false;
+
+	for (let i = 0; i < lines.length; i++) {
+		const text = lines[i];
+
+		const taskMatch = text.match(/^(\s*)-\s*\[([ x])\]\s*(.*)/);
+		if (taskMatch) {
+			// 前のタスクにログがなければ日付なしで追加
+			if (currentTask && !currentTaskHasLog) {
+				tasks.push({
+					isCompleted: currentTask.completed,
+					text: currentTask.text,
+					line: currentTask.line,
+					log: '',
+					date: ''
+				});
+			}
+			currentTask = {
+				indent: taskMatch[1].length,
+				completed: taskMatch[2] === 'x',
+				text: taskMatch[3],
+				line: i
+			};
+			currentTaskHasLog = false;
+			continue;
+		}
+
+		const dateMatch = text.match(/^(\s*)-\s*(\d{4}-\d{2}-\d{2}):\s*(.*)/);
+		if (dateMatch && currentTask) {
+			const dateIndent = dateMatch[1].length;
+			const dateStr = dateMatch[2];
+			const logContent = dateMatch[3];
+
+			if (dateIndent > currentTask.indent) {
+				tasks.push({
+					isCompleted: currentTask.completed,
+					text: currentTask.text,
+					line: currentTask.line,
+					log: logContent,
+					date: dateStr
+				});
+				currentTaskHasLog = true;
+			}
+		}
+	}
+
+	// 最後のタスクにログがなければ日付なしで追加
+	if (currentTask && !currentTaskHasLog) {
+		tasks.push({
+			isCompleted: currentTask.completed,
+			text: currentTask.text,
+			line: currentTask.line,
+			log: '',
+			date: ''
+		});
+	}
+
 	return tasks;
 }
 
@@ -96,10 +163,10 @@ function getLocalDateString(): string {
 
 interface FileTaskGroup {
 	fileName: string;
-	tasks: Array<{ isCompleted: boolean; text: string; fileUri: string; line: number; log: string }>;
+	tasks: Array<{ isCompleted: boolean; text: string; fileUri: string; line: number; log: string; date: string }>;
 }
 
-async function collectTasks(targetDate: string): Promise<FileTaskGroup[]> {
+async function findAllMarkdownUris(): Promise<vscode.Uri[]> {
 	const workspaceFiles = await vscode.workspace.findFiles('**/*.md', '**/node_modules/**');
 
 	// ワークスペース内のファイル + 開いている .md ファイルを合算し、URI で重複排除
@@ -121,8 +188,13 @@ async function collectTasks(targetDate: string): Promise<FileTaskGroup[]> {
 			}
 		}
 	}
+	return allFileUris;
+}
 
-	const groups: FileTaskGroup[] = [];
+async function collectAllTasks(): Promise<Map<string, FileTaskGroup[]>> {
+	const allFileUris = await findAllMarkdownUris();
+	// 日付 → FileTaskGroup[] のマップ
+	const dateMap = new Map<string, FileTaskGroup[]>();
 
 	for (const fileUri of allFileUris) {
 		const doc = await vscode.workspace.openTextDocument(fileUri);
@@ -130,50 +202,105 @@ async function collectTasks(targetDate: string): Promise<FileTaskGroup[]> {
 		for (let i = 0; i < doc.lineCount; i++) {
 			lines.push(doc.lineAt(i).text);
 		}
-		const tasksInFile = parseTasks(lines, targetDate);
+		const tasksInFile = parseTasksAllDates(lines);
 
 		if (tasksInFile.length > 0) {
 			const relativePath = vscode.workspace.asRelativePath(fileUri);
-			groups.push({
-				fileName: path.basename(relativePath),
-				tasks: tasksInFile.map(t => ({
-					isCompleted: t.isCompleted,
-					text: t.text,
-					fileUri: fileUri.toString(),
-					line: t.line,
-					log: t.log
-				}))
-			});
+			const fileName = path.basename(relativePath);
+
+			// 日付ごとにグループ化
+			const byDate = new Map<string, ParsedTaskWithDate[]>();
+			for (const t of tasksInFile) {
+				let arr = byDate.get(t.date);
+				if (!arr) {
+					arr = [];
+					byDate.set(t.date, arr);
+				}
+				arr.push(t);
+			}
+
+			for (const [date, tasks] of byDate) {
+				let groups = dateMap.get(date);
+				if (!groups) {
+					groups = [];
+					dateMap.set(date, groups);
+				}
+				groups.push({
+					fileName,
+					tasks: tasks.map(t => ({
+						isCompleted: t.isCompleted,
+						text: t.text,
+						fileUri: fileUri.toString(),
+						line: t.line,
+						log: t.log,
+						date: t.date
+					}))
+				});
+			}
 		}
 	}
 
-	return groups;
+	return dateMap;
 }
 
 function escapeHtml(text: string): string {
 	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function renderGroups(groups: FileTaskGroup[]): string {
+	let html = '';
+	for (const group of groups) {
+		html += `<h3>${escapeHtml(group.fileName)}</h3>\n<ul>\n`;
+		for (const task of group.tasks) {
+			const checkbox = task.isCompleted ? '&#9745;' : '&#9744;';
+			const dataAttr = `data-uri="${escapeHtml(task.fileUri)}" data-line="${task.line}"`;
+			html += `<li>${checkbox} <a href="#" class="task-link" ${dataAttr}>${escapeHtml(task.text)}</a>`;
+			if (task.log) {
+				html += `\n  <br><span class="log">📝 ${escapeHtml(task.log)}</span>`;
+			}
+			html += `</li>\n`;
+		}
+		html += `</ul>\n`;
+	}
+	return html;
+}
+
 async function buildHtml(todayStr: string): Promise<string> {
-	const groups = await collectTasks(todayStr);
+	const dateMap = await collectAllTasks();
+
+	const todayGroups = dateMap.get(todayStr) ?? [];
+	dateMap.delete(todayStr);
+
+	const noDateGroups = dateMap.get('') ?? [];
+	dateMap.delete('');
+
+	// 今日以外の日付を新しい順にソート
+	const otherDates = [...dateMap.keys()].sort().reverse();
 
 	let body = '';
-	if (groups.length === 0) {
-		body = `
-			<p>今日のタスク（ログ行: ${escapeHtml(todayStr)}）は見つかりませんでした。</p>
+
+	// 今日のタスク
+	body += `<h2>今日 (${escapeHtml(todayStr)})</h2>\n`;
+	if (todayGroups.length === 0) {
+		body += `
+			<p>今日のタスクは見つかりませんでした。</p>
 			<p>タスクの下に &quot;- ${escapeHtml(todayStr)}: ログ&quot; を追加してみてください。</p>
 			<p>※Markdownファイルが保存されているかも確認してください。</p>`;
 	} else {
-		for (const group of groups) {
-			body += `<h2>${escapeHtml(group.fileName)}</h2>\n<ul>\n`;
-			for (const task of group.tasks) {
-				const checkbox = task.isCompleted ? '&#9745;' : '&#9744;';
-				const dataAttr = `data-uri="${escapeHtml(task.fileUri)}" data-line="${task.line}"`;
-				body += `<li>${checkbox} <a href="#" class="task-link" ${dataAttr}>${escapeHtml(task.text)}</a>\n`;
-				body += `  <br><span class="log">📝 ${escapeHtml(task.log)}</span></li>\n`;
-			}
-			body += `</ul>\n`;
-		}
+		body += renderGroups(todayGroups);
+	}
+
+	// その他の日付のタスク
+	for (const date of otherDates) {
+		const groups = dateMap.get(date)!;
+		body += `<h2>${escapeHtml(date)}</h2>\n`;
+		body += renderGroups(groups);
+	}
+
+	// 日付なしのタスク
+	if (noDateGroups.length > 0) {
+		body += `<h2>日付なし</h2>\n`;
+		body += renderGroups(noDateGroups);
 	}
 
 	return `<!DOCTYPE html>
@@ -184,7 +311,8 @@ async function buildHtml(todayStr: string): Promise<string> {
 <style>
 	body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 12px; }
 	h1 { font-size: 1.4em; }
-	h2 { font-size: 1.1em; margin-top: 1.2em; }
+	h2 { font-size: 1.2em; margin-top: 1.4em; border-bottom: 1px solid var(--vscode-panel-border); padding-bottom: 4px; }
+	h3 { font-size: 1.0em; margin-top: 0.8em; }
 	ul { list-style: none; padding-left: 0; }
 	li { margin-bottom: 8px; }
 	.task-link { color: var(--vscode-textLink-foreground); cursor: pointer; text-decoration: underline; }
@@ -193,7 +321,7 @@ async function buildHtml(todayStr: string): Promise<string> {
 </style>
 </head>
 <body>
-<h1>今日のタスク一覧 (${escapeHtml(todayStr)})</h1>
+<h1>タスク一覧</h1>
 ${body}
 <script>
 	const vscode = acquireVsCodeApi();
