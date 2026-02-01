@@ -166,10 +166,28 @@ interface FileTaskGroup {
 	tasks: Array<{ isCompleted: boolean; text: string; fileUri: string; line: number; log: string; date: string }>;
 }
 
+async function findMarkdownFilesInDirectory(dirUri: vscode.Uri): Promise<vscode.Uri[]> {
+	const results: vscode.Uri[] = [];
+	const entries = await vscode.workspace.fs.readDirectory(dirUri);
+	for (const [name, type] of entries) {
+		const childUri = vscode.Uri.joinPath(dirUri, name);
+		if (type === vscode.FileType.Directory) {
+			if (name === 'node_modules') {
+				continue;
+			}
+			const nested = await findMarkdownFilesInDirectory(childUri);
+			results.push(...nested);
+		} else if (type === vscode.FileType.File && name.endsWith('.md')) {
+			results.push(childUri);
+		}
+	}
+	return results;
+}
+
 async function findAllMarkdownUris(): Promise<vscode.Uri[]> {
 	const workspaceFiles = await vscode.workspace.findFiles('**/*.md', '**/node_modules/**');
 
-	// ワークスペース内のファイル + 開いている .md ファイルを合算し、URI で重複排除
+	// ワークスペース内のファイル + 開いている .md ファイル + 追加ディレクトリを合算し、URI で重複排除
 	const seen = new Set<string>();
 	const allFileUris: vscode.Uri[] = [];
 	for (const uri of workspaceFiles) {
@@ -188,6 +206,26 @@ async function findAllMarkdownUris(): Promise<vscode.Uri[]> {
 			}
 		}
 	}
+
+	// 設定で指定された追加ディレクトリをスキャン
+	const config = vscode.workspace.getConfiguration('daily-task-logger');
+	const additionalDirs: string[] = config.get<string[]>('additionalDirectories', []);
+	for (const dirPath of additionalDirs) {
+		const dirUri = vscode.Uri.file(dirPath);
+		try {
+			const mdFiles = await findMarkdownFilesInDirectory(dirUri);
+			for (const uri of mdFiles) {
+				const key = uri.toString();
+				if (!seen.has(key)) {
+					seen.add(key);
+					allFileUris.push(uri);
+				}
+			}
+		} catch {
+			// ディレクトリが存在しない場合などはスキップ
+		}
+	}
+
 	return allFileUris;
 }
 

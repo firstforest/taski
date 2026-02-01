@@ -17,7 +17,20 @@
         "command": "daily-task-logger.showToday",
         "title": "Show Today's Tasks"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Daily Task Logger",
+      "properties": {
+        "daily-task-logger.additionalDirectories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "追加でスキャンするディレクトリのパス一覧（絶対パス）"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
