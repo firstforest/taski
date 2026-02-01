@@ -1,0 +1,11 @@
+[tools]
+node = "latest"
+
+[tasks.download]
+run = [
+    "echo Downloading files...",
+    "gh release download --repo firstforest/daily-task-logger --pattern *.vsix",
+]
+
+[tasks.install]
+run = "node scripts/install-vsix.js"
