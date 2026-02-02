@@ -373,11 +373,15 @@ function escapeHtml(text: string): string {
 	return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function renderGroups(groups: FileTaskGroup[]): string {
+function renderGroups(groups: FileTaskGroup[], hideCompleted: boolean = false): string {
 	let html = '';
 	for (const group of groups) {
+		const tasks = hideCompleted ? group.tasks.filter(t => !t.isCompleted) : group.tasks;
+		if (tasks.length === 0) {
+			continue;
+		}
 		html += `<h3>${escapeHtml(group.fileName)}</h3>\n<ul>\n`;
-		for (const task of group.tasks) {
+		for (const task of tasks) {
 			const checkbox = task.isCompleted ? '&#9745;' : '&#9744;';
 			const dataAttr = `data-uri="${escapeHtml(task.fileUri)}" data-line="${task.line}"`;
 			html += `<li>${checkbox} <a href="#" class="task-link" ${dataAttr}>${escapeHtml(task.text)}</a>`;
@@ -416,17 +420,23 @@ async function buildHtml(todayStr: string): Promise<string> {
 		body += renderGroups(todayGroups);
 	}
 
-	// その他の日付のタスク
+	// その他の日付のタスク（完了タスクは非表示）
 	for (const date of otherDates) {
 		const groups = dateMap.get(date)!;
-		body += `<h2>${escapeHtml(date)}</h2>\n`;
-		body += renderGroups(groups);
+		const rendered = renderGroups(groups, true);
+		if (rendered) {
+			body += `<h2>${escapeHtml(date)}</h2>\n`;
+			body += rendered;
+		}
 	}
 
-	// 日付なしのタスク
+	// 日付なしのタスク（完了タスクは非表示）
 	if (noDateGroups.length > 0) {
-		body += `<h2>日付なし</h2>\n`;
-		body += renderGroups(noDateGroups);
+		const rendered = renderGroups(noDateGroups, true);
+		if (rendered) {
+			body += `<h2>日付なし</h2>\n`;
+			body += rendered;
+		}
 	}
 
 	return `<!DOCTYPE html>
