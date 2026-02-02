@@ -16,6 +16,18 @@
       {
         "command": "daily-task-logger.showToday",
         "title": "Show Today's Tasks"
+      },
+      {
+        "command": "daily-task-logger.addTodayLog",
+        "title": "Add Today's Log Entry"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "daily-task-logger.addTodayLog",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
+        "when": "editorTextFocus && editorLangId == markdown"
       }
     ],
     "configuration": {

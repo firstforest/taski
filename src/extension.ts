@@ -150,6 +150,67 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(disposable);
+
+	const addTodayLogDisposable = vscode.commands.registerCommand('daily-task-logger.addTodayLog', async () => {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return;
+		}
+
+		const document = editor.document;
+		const cursorLine = editor.selection.active.line;
+
+		// カーソル行からタスク行を特定する（カーソル行自体がタスク行か、上方向に探す）
+		let taskLineIndex = -1;
+		let taskIndent = 0;
+		let insertLine = cursorLine;
+
+		for (let i = cursorLine; i >= 0; i--) {
+			const lineText = document.lineAt(i).text;
+			const taskMatch = lineText.match(/^(\s*)-\s*\[([ x])\]\s*/);
+			if (taskMatch) {
+				taskLineIndex = i;
+				taskIndent = taskMatch[1].length;
+
+				if (i === cursorLine) {
+					// カーソルがタスク行にある場合、その直下に挿入
+					insertLine = cursorLine;
+				} else {
+					// カーソルがログ行にある場合、カーソル行の下に挿入
+					insertLine = cursorLine;
+				}
+				break;
+			}
+
+			// 日付ログ行かチェック（タスクの子要素として続いているか確認）
+			const dateMatch = lineText.match(/^(\s*)-\s*\d{4}-\d{2}-\d{2}:\s*/);
+			if (!dateMatch) {
+				// タスク行でもログ行でもない行に到達したら探索終了
+				break;
+			}
+		}
+
+		if (taskLineIndex === -1) {
+			return;
+		}
+
+		const todayStr = getLocalDateString();
+		const logIndent = ' '.repeat(taskIndent + 4);
+		const insertText = `${logIndent}- ${todayStr}: `;
+
+		await editor.edit(editBuilder => {
+			const lineEnd = document.lineAt(insertLine).range.end;
+			editBuilder.insert(lineEnd, `\n${insertText}`);
+		});
+
+		// カーソルを挿入した行の末尾に移動
+		const newLine = insertLine + 1;
+		const newCol = insertText.length;
+		const newPosition = new vscode.Position(newLine, newCol);
+		editor.selection = new vscode.Selection(newPosition, newPosition);
+	});
+
+	context.subscriptions.push(addTodayLogDisposable);
 }
 
 // ローカルタイムゾーンで YYYY-MM-DD を取得する関数
