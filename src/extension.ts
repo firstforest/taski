@@ -166,7 +166,23 @@ interface FileTaskGroup {
 	tasks: Array<{ isCompleted: boolean; text: string; fileUri: string; line: number; log: string; date: string }>;
 }
 
-async function findMarkdownFilesInDirectory(dirUri: vscode.Uri): Promise<vscode.Uri[]> {
+function matchesExcludePattern(filePath: string, patterns: string[]): boolean {
+	for (const pattern of patterns) {
+		// globパターンから正規表現に変換（簡易実装: ** → .*, * → [^/]*）
+		const regexStr = pattern
+			.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+			.replace(/\*\*/g, '<<GLOBSTAR>>')
+			.replace(/\*/g, '[^/]*')
+			.replace(/<<GLOBSTAR>>/g, '.*');
+		const regex = new RegExp(regexStr);
+		if (regex.test(filePath)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+async function findMarkdownFilesInDirectory(dirUri: vscode.Uri, excludePatterns: string[] = []): Promise<vscode.Uri[]> {
 	const results: vscode.Uri[] = [];
 	const entries = await vscode.workspace.fs.readDirectory(dirUri);
 	for (const [name, type] of entries) {
@@ -175,9 +191,15 @@ async function findMarkdownFilesInDirectory(dirUri: vscode.Uri): Promise<vscode.
 			if (name === 'node_modules') {
 				continue;
 			}
-			const nested = await findMarkdownFilesInDirectory(childUri);
+			if (excludePatterns.length > 0 && matchesExcludePattern(childUri.fsPath, excludePatterns)) {
+				continue;
+			}
+			const nested = await findMarkdownFilesInDirectory(childUri, excludePatterns);
 			results.push(...nested);
 		} else if (type === vscode.FileType.File && name.endsWith('.md')) {
+			if (excludePatterns.length > 0 && matchesExcludePattern(childUri.fsPath, excludePatterns)) {
+				continue;
+			}
 			results.push(childUri);
 		}
 	}
@@ -185,7 +207,13 @@ async function findMarkdownFilesInDirectory(dirUri: vscode.Uri): Promise<vscode.
 }
 
 async function findAllMarkdownUris(): Promise<vscode.Uri[]> {
-	const workspaceFiles = await vscode.workspace.findFiles('**/*.md', '**/node_modules/**');
+	const config = vscode.workspace.getConfiguration('daily-task-logger');
+	const excludeDirs: string[] = config.get<string[]>('excludeDirectories', []);
+
+	// findFiles の除外パターンを構築（node_modules + ユーザー指定）
+	const excludePatterns = ['**/node_modules/**', ...excludeDirs];
+	const excludeGlob = `{${excludePatterns.join(',')}}`;
+	const workspaceFiles = await vscode.workspace.findFiles('**/*.md', excludeGlob);
 
 	// ワークスペース内のファイル + 開いている .md ファイル + 追加ディレクトリを合算し、URI で重複排除
 	const seen = new Set<string>();
@@ -208,12 +236,11 @@ async function findAllMarkdownUris(): Promise<vscode.Uri[]> {
 	}
 
 	// 設定で指定された追加ディレクトリをスキャン
-	const config = vscode.workspace.getConfiguration('daily-task-logger');
 	const additionalDirs: string[] = config.get<string[]>('additionalDirectories', []);
 	for (const dirPath of additionalDirs) {
 		const dirUri = vscode.Uri.file(dirPath);
 		try {
-			const mdFiles = await findMarkdownFilesInDirectory(dirUri);
+			const mdFiles = await findMarkdownFilesInDirectory(dirUri, excludeDirs);
 			for (const uri of mdFiles) {
 				const key = uri.toString();
 				if (!seen.has(key)) {

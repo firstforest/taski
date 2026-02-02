@@ -21,6 +21,14 @@
     "configuration": {
       "title": "Daily Task Logger",
       "properties": {
+        "daily-task-logger.excludeDirectories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "スキャン対象から除外するディレクトリのglobパターン一覧（例: **/archive/**, **/backup/**）"
+        },
         "daily-task-logger.additionalDirectories": {
           "type": "array",
           "items": {
