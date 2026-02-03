@@ -335,7 +335,8 @@ function escapeHtml(text: string): string {
 function renderGroups(groups: FileTaskGroup[], hideCompleted: boolean = false): string {
 	let html = '';
 	for (const group of groups) {
-		const tasks = hideCompleted ? group.tasks.filter(t => !t.isCompleted) : group.tasks;
+		const filtered = hideCompleted ? group.tasks.filter(t => !t.isCompleted) : group.tasks;
+		const tasks = [...filtered].sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted));
 		if (tasks.length === 0) {
 			continue;
 		}
