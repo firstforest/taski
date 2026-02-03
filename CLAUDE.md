@@ -19,7 +19,7 @@ Tests require compilation to `out/` first (`npm run compile-tests`), but `npm ru
 
 ## Architecture
 
-Single-command extension (`daily-task-logger.showToday`) in one main source file:
+Extension with four commands (`showToday`, `addTodayLog`, `addTomorrowLog`, `toggleTask`) in one main source file:
 
 - **`src/extension.ts`** — contains these key parts:
   1. **`parseTasks(lines, targetDate)`** — pure function (no VS Code dependency) that parses task checkboxes and their date-prefixed log entries for a specific date. Exported for direct unit testing.
@@ -45,6 +45,11 @@ The extension parses this structure in `.md` files:
 ```
 
 Log lines must be indented deeper than their parent task line. Tasks are displayed grouped by date (today first, then newest to oldest). Tasks without any log entries appear under a "日付なし" section.
+
+## Configuration Settings
+
+- **`daily-task-logger.excludeDirectories`** — glob patterns for directories to exclude from scanning (e.g., `**/archive/**`)
+- **`daily-task-logger.additionalDirectories`** — absolute paths of additional directories to scan beyond the workspace
 
 ## Build Configuration
 

@@ -1,6 +1,6 @@
 # daily-task-logger
 
-ワークスペース内の Markdown ファイルからタスクとログを集約し、今日の日付に該当するエントリを一覧表示する VS Code 拡張機能です。
+ワークスペース内の Markdown ファイルからタスクとログを集約し、日付ごとに整理して表示する VS Code 拡張機能です。
 
 ## 機能
 
@@ -9,10 +9,37 @@
 - ログ行がないタスクも「日付なし」セクションとして表示されます
 - 各タスクにはソースファイルへのクリック可能なリンクが付与され、該当行にジャンプできます
 - 結果は Webview パネルとしてサイドパネルに表示されます
+- Markdown ファイルの保存時にプレビューが自動更新されます
 
-## 使い方
+## コマンド
 
-コマンドパレット（`Ctrl+Shift+P` / `Cmd+Shift+P`）から **Show Today's Tasks** を実行してください。
+| コマンド | タイトル | キーバインド（Mac） | キーバインド（Win/Linux） |
+|---|---|---|---|
+| `daily-task-logger.showToday` | Show Today's Tasks | — | — |
+| `daily-task-logger.addTodayLog` | Add Today's Log Entry | `Cmd+Shift+T` | `Ctrl+Shift+T` |
+| `daily-task-logger.addTomorrowLog` | Add Tomorrow's Log Entry | `Cmd+Shift+Y` | `Ctrl+Shift+Y` |
+| `daily-task-logger.toggleTask` | Toggle Task Completion | `Cmd+Shift+X` | `Ctrl+Shift+X` |
+
+キーバインド付きのコマンドは、Markdown ファイルの編集中（`editorTextFocus && editorLangId == markdown`）のみ有効です。
+
+### Show Today's Tasks
+
+コマンドパレット（`Ctrl+Shift+P` / `Cmd+Shift+P`）から実行すると、Webview パネルにタスク一覧を表示します。
+
+### Add Today's Log Entry / Add Tomorrow's Log Entry
+
+カーソルがタスク行またはその配下のログ行にある状態で実行すると、今日（または明日）の日付でログエントリの行を挿入します。
+
+### Toggle Task Completion
+
+カーソルがタスク行にある状態で実行すると、`[ ]` と `[x]` をトグルします。
+
+## 設定
+
+| 設定 | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `daily-task-logger.excludeDirectories` | `string[]` | `[]` | スキャン対象から除外するディレクトリの glob パターン一覧（例: `**/archive/**`） |
+| `daily-task-logger.additionalDirectories` | `string[]` | `[]` | 追加でスキャンするディレクトリのパス一覧（絶対パス） |
 
 ## タスクの書き方
 
