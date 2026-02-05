@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as os from 'os';
 
 export interface ParsedTask {
 	isCompleted: boolean;
@@ -255,8 +256,10 @@ async function findAllMarkdownUris(): Promise<vscode.Uri[]> {
 		}
 	}
 
-	// 設定で指定された追加ディレクトリをスキャン
-	const additionalDirs: string[] = config.get<string[]>('additionalDirectories', []);
+	// 設定で指定された追加ディレクトリをスキャン（デフォルトで $HOME/taski を含む）
+	const userAdditionalDirs: string[] = config.get<string[]>('additionalDirectories', []);
+	const defaultTaskiDir = path.join(os.homedir(), 'taski');
+	const additionalDirs = [defaultTaskiDir, ...userAdditionalDirs];
 	for (const dirPath of additionalDirs) {
 		const dirUri = vscode.Uri.file(dirPath);
 		try {
