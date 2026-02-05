@@ -2,7 +2,7 @@
   "name": "taski",
   "displayName": "Taski",
   "description": "Aggregate tasks from markdown files and display them organized by date",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "engines": {
     "vscode": "^1.108.1"
   },
