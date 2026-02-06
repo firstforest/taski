@@ -13,12 +13,12 @@
 
 ## コマンド
 
-| コマンド | タイトル | キーバインド（Mac） | キーバインド（Win/Linux） |
-|---|---|---|---|
-| `taski.showToday` | Show Today's Tasks | — | — |
-| `taski.addTodayLog` | Add Today's Log Entry | `Cmd+Shift+T` | `Ctrl+Shift+T` |
-| `taski.addTomorrowLog` | Add Tomorrow's Log Entry | `Cmd+Shift+Y` | `Ctrl+Shift+Y` |
-| `taski.toggleTask` | Toggle Task Completion | `Cmd+Shift+X` | `Ctrl+Shift+X` |
+| コマンド               | タイトル                 | キーバインド（Mac） | キーバインド（Win/Linux） |
+| ---------------------- | ------------------------ | ------------------- | ------------------------- |
+| `taski.showToday`      | Show Today's Tasks       | —                   | —                         |
+| `taski.addTodayLog`    | Add Today's Log Entry    | `Cmd+Shift+T`       | `Ctrl+Shift+T`            |
+| `taski.addTomorrowLog` | Add Tomorrow's Log Entry | `Cmd+Shift+Y`       | `Ctrl+Shift+Y`            |
+| `taski.toggleTask`     | Toggle Task Completion   | `Cmd+Shift+X`       | `Ctrl+Shift+X`            |
 
 キーバインド付きのコマンドは、Markdown ファイルの編集中（`editorTextFocus && editorLangId == markdown`）のみ有効です。
 
@@ -36,10 +36,15 @@
 
 ## 設定
 
-| 設定 | 型 | デフォルト | 説明 |
-|---|---|---|---|
-| `taski.excludeDirectories` | `string[]` | `[]` | スキャン対象から除外するディレクトリの glob パターン一覧（例: `**/archive/**`） |
-| `taski.additionalDirectories` | `string[]` | `[]` | 追加でスキャンするディレクトリのパス一覧（絶対パス） |
+| 設定                          | 型         | デフォルト | 説明                                                                            |
+| ----------------------------- | ---------- | ---------- | ------------------------------------------------------------------------------- |
+| `taski.excludeDirectories`    | `string[]` | `[]`       | スキャン対象から除外するディレクトリの glob パターン一覧（例: `**/archive/**`） |
+| `taski.additionalDirectories` | `string[]` | `[]`       | 追加でスキャンするディレクトリのパス一覧（絶対パス）                            |
+
+### デフォルトスキャンディレクトリ
+
+ワークスペースに加えて、`$HOME/taski` ディレクトリ（Windows では `%USERPROFILE%\taski`）が存在する場合、
+自動的にスキャン対象に含まれます。これにより、ワークスペース外の個人的なタスクファイルも一元管理できます。
 
 ## タスクの書き方
 
