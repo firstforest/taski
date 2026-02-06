@@ -28,6 +28,10 @@
       {
         "command": "taski.toggleTask",
         "title": "Toggle Task Completion"
+      },
+      {
+        "command": "taski.openTodayJournal",
+        "title": "Open Today's Journal"
       }
     ],
     "keybindings": [

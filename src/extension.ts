@@ -161,6 +161,39 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(toggleTaskDisposable);
+
+	// 今日の日付のジャーナルファイルを開くコマンド
+	const openTodayJournalDisposable = vscode.commands.registerCommand('taski.openTodayJournal', async () => {
+		const todayStr = getLocalDateString();
+		const [year, month, day] = todayStr.split('-');
+
+		// $HOME/taski/journal/<year>/<month>/<year>-<month>-<date>.md
+		const journalDir = path.join(os.homedir(), 'taski', 'journal', year, month);
+		const journalFileName = `${year}-${month}-${day}.md`;
+		const journalPath = path.join(journalDir, journalFileName);
+
+		const journalUri = vscode.Uri.file(journalPath);
+
+		// ディレクトリが存在しない場合は作成
+		try {
+			await vscode.workspace.fs.stat(vscode.Uri.file(journalDir));
+		} catch {
+			await vscode.workspace.fs.createDirectory(vscode.Uri.file(journalDir));
+		}
+
+		// ファイルが存在しない場合は作成
+		try {
+			await vscode.workspace.fs.stat(journalUri);
+		} catch {
+			await vscode.workspace.fs.writeFile(journalUri, new TextEncoder().encode(''));
+		}
+
+		// ファイルを開く
+		const doc = await vscode.workspace.openTextDocument(journalUri);
+		await vscode.window.showTextDocument(doc);
+	});
+
+	context.subscriptions.push(openTodayJournalDisposable);
 }
 
 // ローカルタイムゾーンで YYYY-MM-DD を取得する関数
