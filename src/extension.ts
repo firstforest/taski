@@ -103,7 +103,7 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const logIndent = ' '.repeat(taskIndent + 4);
+		const logIndent = ' '.repeat(taskIndent + 2);
 		const insertText = `${logIndent}- ${dateStr}: `;
 
 		await editor.edit(editBuilder => {
