@@ -284,7 +284,7 @@ export class GitSyncManager implements vscode.Disposable {
 		}
 
 		const config = vscode.workspace.getConfiguration('taski');
-		const interval = config.get<number>('gitSyncInterval', 30);
+		const interval = config.get<number>('gitSyncInterval', 60);
 		const intervalMs = Math.max(interval, 30) * 1000; // 最小30秒
 
 		this.timer = setInterval(() => {

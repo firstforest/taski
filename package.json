@@ -126,7 +126,7 @@
         },
         "taski.gitSyncInterval": {
           "type": "number",
-          "default": 30,
+          "default": 60,
           "minimum": 30,
           "description": "Git自動同期の間隔（秒）。最小30秒。"
         }
