@@ -181,7 +181,7 @@ export function activate(context: vscode.ExtensionContext) {
 		try {
 			await vscode.workspace.fs.stat(journalUri);
 		} catch {
-			await vscode.workspace.fs.writeFile(journalUri, new TextEncoder().encode(''));
+			await vscode.workspace.fs.writeFile(journalUri, new TextEncoder().encode(`# ${year}-${month}-${day}\n\n`));
 		}
 
 		// ファイルを開く
