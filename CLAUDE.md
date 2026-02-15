@@ -8,14 +8,15 @@ VS Code extension ("taski") that aggregates tasks from markdown files across the
 
 ## Commands
 
-- `npm run compile` — type-check + lint + esbuild (dev mode, with sourcemaps)
-- `npm run watch` — parallel watch for esbuild and tsc
-- `npm run package` — type-check + lint + minified production build
+- `npm run compile` — build:wasm + type-check + lint + esbuild (dev mode, with sourcemaps)
+- `npm run watch` — parallel watch for esbuild and tsc (does not rebuild WASM; run `build:wasm` first)
+- `npm run package` — build:wasm + type-check + lint + minified production build
 - `npm run check-types` — TypeScript type-check only (`tsc --noEmit`)
 - `npm run lint` — ESLint on `src/`
+- `npm run build:wasm` — compiles Rust to WASM (already included in `compile` and `package`)
 - `npm run test` — run VS Code extension tests (requires a VS Code instance; uses `@vscode/test-cli` + `@vscode/test-electron`)
 
-Tests require compilation to `out/` first (`npm run compile-tests`), but `npm run test` handles this via the `pretest` script. The test runner picks up `out/test/**/*.test.js` as configured in `.vscode-test.mjs`.
+Tests require compilation to `out/` first. The `pretest` script handles this: builds WASM, compiles TypeScript to `out/`, copies `src/pkg/` to `out/pkg/` (needed for WASM imports in tests), then runs `compile` and `lint`. The test runner picks up `out/test/**/*.test.js` as configured in `.vscode-test.mjs`.
 
 ## Architecture
 
@@ -25,7 +26,7 @@ Extension with six commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTom
 
 - **`src/taskTreeProvider.ts`** — TreeView implementation:
   - **`TaskTreeItem`** — TreeItem subclass with node types: `date`, `file`, `task`, `log`. Each type has color-coded icons (today=green, past=orange, completed=green, incomplete=yellow, etc.).
-  - **`TaskTreeProvider`** — TreeDataProvider that scans markdown files, groups tasks by date, and builds the tree hierarchy (date → file → task → log).
+  - **`TaskTreeProvider`** — TreeDataProvider that scans markdown files, groups tasks by date, and builds the tree hierarchy (date → file → task → log). Display filtering: today's date shows all tasks (completed + incomplete) with progress counter; other dates and "日付なし" only show if they have incomplete tasks.
 
 - **`src/parser.ts`** — TypeScript wrapper that re-exports WASM parser functions.
 
@@ -53,6 +54,8 @@ Log lines must be indented deeper than their parent task line. Tasks are display
 - **`taski.excludeDirectories`** — glob patterns for directories to exclude from scanning (e.g., `**/archive/**`)
 - **`taski.additionalDirectories`** — absolute paths of additional directories to scan beyond the workspace
 
+By default, `$HOME/taski` is always scanned if it exists, regardless of configuration. Currently open markdown documents are also always included.
+
 ## Build Configuration
 
 - **esbuild.js** — entry `src/extension.ts` → `dist/extension.js`, platform node, format cjs. Production builds minify; dev builds include sourcemaps.
@@ -70,4 +73,9 @@ Log lines must be indented deeper than their parent task line. Tasks are display
 The pure parser functions (`parseTasks`, `parseTasksAllDates`) are implemented in Rust (`parser-wasm/src/lib.rs`) and compiled to WebAssembly via wasm-pack. The TypeScript wrapper (`src/parser.ts`) re-exports them, and `src/extension.ts` re-exports from `parser.ts` to maintain the existing public API.
 
 - `npm run build:wasm` — compiles Rust to WASM and outputs glue code to `src/pkg/`
-- The esbuild plugin copies `parser_wasm_bg.wasm` to `dist/` during bundling
+- The esbuild plugin (`wasmCopyPlugin` in `esbuild.js`) copies `parser_wasm_bg.wasm` to `dist/` during bundling
+- `src/pkg/` is gitignored — it's generated output
+
+## Journal Files
+
+The `openTodayJournal` command creates/opens journal files at `$HOME/taski/journal/<year>/<month>/<year>-<month>-<day>.md`. Directories are created automatically if they don't exist.
