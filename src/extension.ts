@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as os from 'os';
 import { TaskTreeProvider } from './taskTreeProvider';
+import { GitSyncManager } from './gitSync';
 
 export interface ParsedTask {
 	isCompleted: boolean;
@@ -189,6 +190,24 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(openTodayJournalDisposable);
+
+	// Git自動同期の初期化
+	const gitSyncManager = new GitSyncManager();
+	context.subscriptions.push(gitSyncManager);
+	gitSyncManager.start();
+
+	// 手動同期コマンド
+	const syncNowDisposable = vscode.commands.registerCommand('taski.syncNow', () => {
+		gitSyncManager.syncNow();
+	});
+	context.subscriptions.push(syncNowDisposable);
+
+	// OutputChannelを開くコマンド（コンフリクト時用）
+	const openGitSyncOutputDisposable = vscode.commands.registerCommand('taski.openGitSyncOutput', () => {
+		// GitSyncManagerのOutputChannelはprivateなので、syncNowを呼ぶことで開く
+		gitSyncManager.syncNow();
+	});
+	context.subscriptions.push(openGitSyncOutputDisposable);
 }
 
 // ローカルタイムゾーンで YYYY-MM-DD を取得する関数

@@ -54,6 +54,11 @@
       {
         "command": "taski.openTodayJournal",
         "title": "Open Today's Journal"
+      },
+      {
+        "command": "taski.syncNow",
+        "title": "Sync Now (Git)",
+        "icon": "$(cloud-upload)"
       }
     ],
     "keybindings": [
@@ -82,6 +87,11 @@
           "command": "taski.refreshTasks",
           "when": "view == taskiView",
           "group": "navigation"
+        },
+        {
+          "command": "taski.syncNow",
+          "when": "view == taskiView && config.taski.gitAutoSync",
+          "group": "navigation"
         }
       ]
     },
@@ -108,6 +118,17 @@
           },
           "default": [],
           "description": "追加でスキャンするディレクトリのパス一覧（絶対パス）"
+        },
+        "taski.gitAutoSync": {
+          "type": "boolean",
+          "default": true,
+          "description": "$HOME/taskiディレクトリのGit自動同期を有効にする"
+        },
+        "taski.gitSyncInterval": {
+          "type": "number",
+          "default": 30,
+          "minimum": 30,
+          "description": "Git自動同期の間隔（秒）。最小30秒。"
         }
       }
     }
