@@ -191,6 +191,44 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(openTodayJournalDisposable);
 
+	// /today, /tomorrow スラッシュコマンド（日付挿入）
+	const slashCommandProvider = vscode.languages.registerCompletionItemProvider(
+		{ scheme: '*', language: 'markdown' },
+		{
+			provideCompletionItems(document, position) {
+				const lineText = document.lineAt(position).text;
+				const slashIndex = lineText.lastIndexOf('/', position.character);
+				if (slashIndex < 0) {
+					return [];
+				}
+
+				const range = new vscode.Range(position.line, slashIndex, position.line, position.character);
+
+				const todayItem = new vscode.CompletionItem('/today', vscode.CompletionItemKind.Snippet);
+				const todayStr = getLocalDateString();
+				todayItem.insertText = todayStr;
+				todayItem.detail = `今日の日付を挿入 (${todayStr})`;
+				todayItem.range = range;
+
+				const tomorrowItem = new vscode.CompletionItem('/tomorrow', vscode.CompletionItemKind.Snippet);
+				const tomorrowStr = getTomorrowDateString();
+				tomorrowItem.insertText = tomorrowStr;
+				tomorrowItem.detail = `明日の日付を挿入 (${tomorrowStr})`;
+				tomorrowItem.range = range;
+
+				const nowItem = new vscode.CompletionItem('/now', vscode.CompletionItemKind.Snippet);
+				const nowStr = getLocalTimeString();
+				nowItem.insertText = nowStr;
+				nowItem.detail = `現在の時刻を挿入 (${nowStr})`;
+				nowItem.range = range;
+
+				return [todayItem, tomorrowItem, nowItem];
+			}
+		},
+		'/'
+	);
+	context.subscriptions.push(slashCommandProvider);
+
 	// Git自動同期の初期化
 	const gitSyncManager = new GitSyncManager();
 	context.subscriptions.push(gitSyncManager);
@@ -227,5 +265,13 @@ function getTomorrowDateString(): string {
 	const month = String(d.getMonth() + 1).padStart(2, '0');
 	const day = String(d.getDate()).padStart(2, '0');
 	return `${year}-${month}-${day}`;
+}
+
+// ローカルタイムゾーンで HH:mm を取得する関数
+function getLocalTimeString(): string {
+	const d = new Date();
+	const hours = String(d.getHours()).padStart(2, '0');
+	const minutes = String(d.getMinutes()).padStart(2, '0');
+	return `${hours}:${minutes}`;
 }
 
