@@ -20,9 +20,9 @@ Tests require compilation to `out/` first. The `pretest` script handles this: bu
 
 ## Architecture
 
-Extension with seven commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTomorrowLog`, `toggleTask`, `openTodayJournal`, `syncNow`) across four source files:
+Extension with eight commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTomorrowLog`, `toggleTask`, `openTodayJournal`, `syncNow`, `openTaskLocation`) across four source files:
 
-- **`src/extension.ts`** — extension activation, command registration, and re-exports parser functions from `parser.ts`.
+- **`src/extension.ts`** — extension activation, command registration, re-exports parser functions from `parser.ts`. Also provides a `CompletionItemProvider` for Markdown slash commands (`/today`, `/tomorrow`, `/now`) that insert the current date, tomorrow's date, or current time. All dates use local timezone, not UTC.
 
 - **`src/taskTreeProvider.ts`** — TreeView implementation:
   - **`TaskTreeItem`** — TreeItem subclass with node types: `date`, `file`, `task`, `log`. Each type has color-coded icons (today=green, past=orange, completed=green, incomplete=yellow, etc.).
@@ -31,7 +31,7 @@ Extension with seven commands (`showToday`, `refreshTasks`, `addTodayLog`, `addT
 - **`src/parser.ts`** — TypeScript wrapper that re-exports WASM parser functions.
 
 - **`src/gitSync.ts`** — Git auto-sync manager for `$HOME/taski`:
-  - `GitSyncManager` handles automatic git add/commit/pull --rebase/push on a configurable interval (default 30s).
+  - `GitSyncManager` handles automatic git add/commit/pull --rebase/push on a configurable interval (default 60s).
   - Debounced sync on file save (10s delay). Status bar item shows sync state.
   - Conflict handling: aborts rebase and shows warning modal with options to open terminal or retry.
 
@@ -59,7 +59,7 @@ Log lines must be indented deeper than their parent task line. Tasks are display
 - **`taski.excludeDirectories`** — glob patterns for directories to exclude from scanning (e.g., `**/archive/**`)
 - **`taski.additionalDirectories`** — absolute paths of additional directories to scan beyond the workspace
 - **`taski.gitAutoSync`** — enable automatic git sync for `$HOME/taski` (default: `true`)
-- **`taski.gitSyncInterval`** — git sync interval in seconds (default: `30`, minimum: `30`)
+- **`taski.gitSyncInterval`** — git sync interval in seconds (default: `60`, minimum: `30`)
 
 By default, `$HOME/taski` is always scanned if it exists, regardless of configuration. Currently open markdown documents are also always included.
 

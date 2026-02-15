@@ -10,6 +10,8 @@
 - 各タスクにはソースファイルへのクリック可能なリンクが付与され、該当行にジャンプできます
 - 結果はアクティビティバーの専用アイコンからアクセスできる TreeView として表示されます
 - Markdown ファイルの保存時にビューが自動更新されます
+- Markdown 内でスラッシュコマンド（`/today`, `/tomorrow`, `/now`）を入力すると、日付・時刻を挿入できます
+- `$HOME/taski` ディレクトリの Git 自動同期（add → commit → pull --rebase → push）
 
 ## コマンド
 
@@ -21,6 +23,7 @@
 | `taski.addTomorrowLog`   | Add Tomorrow's Log Entry | `Cmd+Shift+Y`       | `Ctrl+Shift+Y`            |
 | `taski.toggleTask`       | Toggle Task Completion   | `Cmd+Shift+X`       | `Ctrl+Shift+X`            |
 | `taski.openTodayJournal` | Open Today's Journal     | —                   | —                         |
+| `taski.syncNow`          | Sync Now (Git)           | —                   | —                         |
 
 キーバインド付きのコマンドは、Markdown ファイルの編集中（`editorTextFocus && editorLangId == markdown`）のみ有効です。
 
@@ -42,7 +45,21 @@ TreeView のタイトルバーにあるリフレッシュボタン、または�
 
 ### Open Today's Journal
 
-今日の日付のジャーナルファイルを開きます。
+今日の日付のジャーナルファイル（`$HOME/taski/journal/<year>/<month>/<year>-<month>-<day>.md`）を開きます。ディレクトリが存在しない場合は自動作成されます。
+
+### Sync Now (Git)
+
+`$HOME/taski` ディレクトリの Git 同期を手動実行します。TreeView のタイトルバーに表示されます（Git 自動同期が有効な場合のみ）。
+
+### スラッシュコマンド
+
+Markdown ファイルの編集中に以下のスラッシュコマンドが補完候補として表示されます:
+
+| コマンド     | 挿入される内容                   |
+| ------------ | -------------------------------- |
+| `/today`     | 今日の日付（`YYYY-MM-DD`）       |
+| `/tomorrow`  | 明日の日付（`YYYY-MM-DD`）       |
+| `/now`       | 現在の時刻（`HH:mm`）           |
 
 ## 設定
 
@@ -51,6 +68,8 @@ TreeView のタイトルバーにあるリフレッシュボタン、または�
 | `taski.includeWorkspace`      | `boolean`  | `false`    | 現在のワークスペースをスキャン対象に含めるかどうか                              |
 | `taski.excludeDirectories`    | `string[]` | `[]`       | スキャン対象から除外するディレクトリの glob パターン一覧（例: `**/archive/**`） |
 | `taski.additionalDirectories` | `string[]` | `[]`       | 追加でスキャンするディレクトリのパス一覧（絶対パス）                            |
+| `taski.gitAutoSync`           | `boolean`  | `true`     | `$HOME/taski` ディレクトリの Git 自動同期を有効にする                           |
+| `taski.gitSyncInterval`       | `number`   | `60`       | Git 自動同期の間隔（秒）。最小 30 秒                                           |
 
 ### デフォルトスキャンディレクトリ
 
@@ -79,10 +98,18 @@ Markdown ファイルに以下の形式でタスクとログを記述します:
 
 ## 開発
 
+### 前提条件
+
+- **Rust ツールチェイン** — `rustc` と `cargo`（[rustup](https://rustup.rs/) でインストール）
+- **wasm-pack** — `cargo install wasm-pack`
+- **wasm32-unknown-unknown ターゲット** — `rustup target add wasm32-unknown-unknown`
+
+### ビルド
+
 ```bash
 npm install
-npm run compile    # 型チェック + lint + ビルド（dev）
-npm run watch      # esbuild + tsc の並列ウォッチ
-npm run package    # 型チェック + lint + 本番ビルド（minify）
+npm run compile    # WASM ビルド + 型チェック + lint + esbuild（dev）
+npm run watch      # esbuild + tsc の並列ウォッチ（WASM は再ビルドされません）
+npm run package    # WASM ビルド + 型チェック + lint + 本番ビルド（minify）
 npm run test       # テスト実行（VS Code インスタンスが起動します）
 ```
