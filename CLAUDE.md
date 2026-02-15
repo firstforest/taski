@@ -20,7 +20,7 @@ Tests require compilation to `out/` first. The `pretest` script handles this: bu
 
 ## Architecture
 
-Extension with six commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTomorrowLog`, `toggleTask`, `openTodayJournal`) across two main source files:
+Extension with seven commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTomorrowLog`, `toggleTask`, `openTodayJournal`, `syncNow`) across four source files:
 
 - **`src/extension.ts`** — extension activation, command registration, and re-exports parser functions from `parser.ts`.
 
@@ -29,6 +29,11 @@ Extension with six commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTom
   - **`TaskTreeProvider`** — TreeDataProvider that scans markdown files, groups tasks by date, and builds the tree hierarchy (date → file → task → log). Display filtering: today's date shows all tasks (completed + incomplete) with progress counter; other dates and "日付なし" only show if they have incomplete tasks.
 
 - **`src/parser.ts`** — TypeScript wrapper that re-exports WASM parser functions.
+
+- **`src/gitSync.ts`** — Git auto-sync manager for `$HOME/taski`:
+  - `GitSyncManager` handles automatic git add/commit/pull --rebase/push on a configurable interval (default 30s).
+  - Debounced sync on file save (10s delay). Status bar item shows sync state.
+  - Conflict handling: aborts rebase and shows warning modal with options to open terminal or retry.
 
 - **`src/test/parseTasks.test.ts`** — Mocha unit tests for `parseTasks` and `parseTasksAllDates` (19 test cases covering date filtering, indentation rules, nested tasks, no-date tasks, edge cases).
 
@@ -53,6 +58,8 @@ Log lines must be indented deeper than their parent task line. Tasks are display
 - **`taski.includeWorkspace`** — whether to scan the current workspace for markdown files (default: `false`)
 - **`taski.excludeDirectories`** — glob patterns for directories to exclude from scanning (e.g., `**/archive/**`)
 - **`taski.additionalDirectories`** — absolute paths of additional directories to scan beyond the workspace
+- **`taski.gitAutoSync`** — enable automatic git sync for `$HOME/taski` (default: `true`)
+- **`taski.gitSyncInterval`** — git sync interval in seconds (default: `30`, minimum: `30`)
 
 By default, `$HOME/taski` is always scanned if it exists, regardless of configuration. Currently open markdown documents are also always included.
 
@@ -79,3 +86,7 @@ The pure parser functions (`parseTasks`, `parseTasksAllDates`) are implemented i
 ## Journal Files
 
 The `openTodayJournal` command creates/opens journal files at `$HOME/taski/journal/<year>/<month>/<year>-<month>-<day>.md`. Directories are created automatically if they don't exist.
+
+## Release
+
+GitHub Actions workflow (`.github/workflows/release.yml`) triggers on `v*` tags. It builds the VSIX package and creates a GitHub Release with the artifact. To release: bump version in `package.json`, commit, tag with `v<version>`, push tag.
