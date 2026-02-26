@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { TaskTreeProvider } from './taskTreeProvider';
 import { GitSyncManager } from './gitSync';
+import { TagTreeProvider } from './tagTreeProvider';
 
 export interface ParsedTask {
 	isCompleted: boolean;
@@ -28,6 +29,14 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(treeView);
 
+	// タグ別TreeViewの登録
+	const tagTreeProvider = new TagTreeProvider();
+	const tagTreeView = vscode.window.createTreeView('taskiTagView', {
+		treeDataProvider: tagTreeProvider,
+		showCollapseAll: true
+	});
+	context.subscriptions.push(tagTreeView);
+
 	// showTodayコマンド: TreeViewを表示
 	const showTodayDisposable = vscode.commands.registerCommand('taski.showToday', async () => {
 		await vscode.commands.executeCommand('taskiView.focus');
@@ -38,6 +47,7 @@ export function activate(context: vscode.ExtensionContext) {
 	// リフレッシュコマンド
 	const refreshDisposable = vscode.commands.registerCommand('taski.refreshTasks', () => {
 		taskTreeProvider.refresh();
+		tagTreeProvider.refresh();
 	});
 	context.subscriptions.push(refreshDisposable);
 
@@ -56,6 +66,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const onSaveDisposable = vscode.workspace.onDidSaveTextDocument(async (doc) => {
 		if (doc.languageId === 'markdown') {
 			taskTreeProvider.refresh();
+			tagTreeProvider.refresh();
 		}
 	});
 	context.subscriptions.push(onSaveDisposable);
