@@ -26,6 +26,10 @@
         {
           "id": "taskiView",
           "name": "タスク一覧"
+        },
+        {
+          "id": "taskiTagView",
+          "name": "タグ別"
         }
       ]
     },
@@ -80,7 +84,7 @@
       "view/title": [
         {
           "command": "taski.refreshTasks",
-          "when": "view == taskiView",
+          "when": "view == taskiView || view == taskiTagView",
           "group": "navigation"
         }
       ]

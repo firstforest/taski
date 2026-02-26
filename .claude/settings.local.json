@@ -14,7 +14,8 @@
       "Bash(./node_modules/.bin/tsc:*)",
       "Bash(npm install:*)",
       "Bash(./node_modules/.bin/eslint:*)",
-      "Bash(npm run test:*)"
+      "Bash(npm run test:*)",
+      "Bash(jj diff:*)"
     ]
   }
 }
