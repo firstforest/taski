@@ -20,7 +20,7 @@ Tests require compilation to `out/` first. The `pretest` script handles this: bu
 
 ## Architecture
 
-Extension with eight commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTomorrowLog`, `toggleTask`, `openTodayJournal`, `syncNow`, `openTaskLocation`) across four source files:
+Extension with seven user-facing commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTomorrowLog`, `toggleTask`, `openTodayJournal`, `syncNow`) plus one internal command (`openTaskLocation`) across four source files:
 
 - **`src/extension.ts`** — extension activation, command registration, re-exports parser functions from `parser.ts`. Also provides a `CompletionItemProvider` for Markdown slash commands (`/today`, `/tomorrow`, `/now`) that insert the current date, tomorrow's date, or current time. All dates use local timezone, not UTC.
 
@@ -28,7 +28,7 @@ Extension with eight commands (`showToday`, `refreshTasks`, `addTodayLog`, `addT
   - **`TaskTreeItem`** — TreeItem subclass with node types: `date`, `file`, `task`, `log`. Each type has color-coded icons (today=green, past=orange, completed=green, incomplete=yellow, etc.).
   - **`TaskTreeProvider`** — TreeDataProvider that scans markdown files, groups tasks by date, and builds the tree hierarchy (date → file → task → log). Display filtering: today's date shows all tasks (completed + incomplete) with progress counter; other dates and "日付なし" only show if they have incomplete tasks.
 
-- **`src/parser.ts`** — TypeScript wrapper that re-exports WASM parser functions.
+- **`src/parser.ts`** — TypeScript wrapper that imports from `./pkg/parser_wasm` and re-exports `parseTasks` and `parseTasksAllDates` with proper types.
 
 - **`src/gitSync.ts`** — Git auto-sync manager for `$HOME/taski`:
   - `GitSyncManager` handles automatic git add/commit/pull --rebase/push on a configurable interval (default 60s).
