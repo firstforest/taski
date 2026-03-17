@@ -16,8 +16,9 @@ export interface ParsedTaskWithDate extends ParsedTask {
 	date: string;
 }
 
-import { parseTasks, parseTasksAllDates } from './parser';
-export { parseTasks, parseTasksAllDates };
+import { parseTasks, parseTasksAllDates, buildTreeData } from './parser';
+export { parseTasks, parseTasksAllDates, buildTreeData };
+export type { FileInput, TreeTaskData, TreeFileGroup, TreeDateGroup } from './parser';
 
 export function activate(context: vscode.ExtensionContext) {
 

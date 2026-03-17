@@ -1,25 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { parseTasksAllDates, ParsedTaskWithDate } from './extension';
 import { findAllMarkdownUris } from './fileScanner';
+import { buildTreeData } from './extension';
+import type { TreeTaskData, TreeFileGroup, TreeDateGroup, FileInput } from './extension';
 
 // TreeViewのノード種別
 type TreeNodeType = 'date' | 'file' | 'task' | 'log';
-
-interface TaskData {
-	isCompleted: boolean;
-	text: string;
-	fileUri: string;
-	line: number;
-	log: string;
-	date: string;
-}
-
-interface FileTaskGroup {
-	fileName: string;
-	fileUri: string;
-	tasks: TaskData[];
-}
 
 // TreeItemとして表示するノード
 export class TaskTreeItem extends vscode.TreeItem {
@@ -28,8 +14,8 @@ export class TaskTreeItem extends vscode.TreeItem {
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
 		public readonly dateKey?: string,
-		public readonly fileGroup?: FileTaskGroup,
-		public readonly task?: TaskData,
+		public readonly fileGroup?: TreeFileGroup,
+		public readonly task?: TreeTaskData,
 		public readonly isToday?: boolean
 	) {
 		super(label, collapsibleState);
@@ -69,7 +55,7 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<TaskTreeItem> {
 	private _onDidChangeTreeData = new vscode.EventEmitter<TaskTreeItem | undefined | null | void>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-	private dateMap: Map<string, FileTaskGroup[]> = new Map();
+	private treeData: TreeDateGroup[] = [];
 	private todayStr: string = '';
 
 	constructor() {
@@ -123,115 +109,34 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<TaskTreeItem> {
 	}
 
 	private getDateNodes(): TaskTreeItem[] {
-		const nodes: TaskTreeItem[] = [];
-
-		// 今日のタスク
-		const todayGroups = this.dateMap.get(this.todayStr);
-		if (todayGroups && todayGroups.length > 0) {
-			// 進捗を計算
-			let totalTasks = 0;
-			let completedTasks = 0;
-			for (const group of todayGroups) {
-				for (const task of group.tasks) {
-					totalTasks++;
-					if (task.isCompleted) {
-						completedTasks++;
-					}
-				}
-			}
-			nodes.push(new TaskTreeItem(
-				'date',
-				`今日 (${this.todayStr}) (${completedTasks}/${totalTasks})`,
-				vscode.TreeItemCollapsibleState.Expanded,
-				this.todayStr,
-				undefined,
-				undefined,
-				true
-			));
-		}
-
-		// その他の日付（新しい順）
-		const otherDates = [...this.dateMap.keys()]
-			.filter(d => d !== this.todayStr && d !== '')
-			.sort()
-			.reverse();
-
-		for (const date of otherDates) {
-			const groups = this.dateMap.get(date)!;
-			// 未完了タスクがあるかチェック
-			const hasIncompleteTasks = groups.some(g => g.tasks.some(t => !t.isCompleted));
-			if (hasIncompleteTasks) {
-				nodes.push(new TaskTreeItem(
-					'date',
-					date,
-					vscode.TreeItemCollapsibleState.Collapsed,
-					date,
-					undefined,
-					undefined,
-					false
-				));
-			}
-		}
-
-		// 日付なし
-		const noDateGroups = this.dateMap.get('');
-		if (noDateGroups && noDateGroups.length > 0) {
-			const hasIncompleteTasks = noDateGroups.some(g => g.tasks.some(t => !t.isCompleted));
-			if (hasIncompleteTasks) {
-				nodes.push(new TaskTreeItem(
-					'date',
-					'日付なし',
-					vscode.TreeItemCollapsibleState.Collapsed,
-					'',
-					undefined,
-					undefined,
-					false
-				));
-			}
-		}
-
-		return nodes;
+		return this.treeData.map(group => new TaskTreeItem(
+			'date',
+			group.label,
+			group.isToday ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed,
+			group.dateKey,
+			undefined,
+			undefined,
+			group.isToday
+		));
 	}
 
 	private getFileNodes(dateKey: string): TaskTreeItem[] {
-		const groups = this.dateMap.get(dateKey);
-		if (!groups) {
+		const dateGroup = this.treeData.find(g => g.dateKey === dateKey);
+		if (!dateGroup) {
 			return [];
 		}
 
-		const isToday = dateKey === this.todayStr;
-		const nodes: TaskTreeItem[] = [];
-
-		for (const group of groups) {
-			// 今日以外は未完了タスクのみ表示
-			const visibleTasks = isToday ? group.tasks : group.tasks.filter(t => !t.isCompleted);
-			if (visibleTasks.length === 0) {
-				continue;
-			}
-
-			const filteredGroup: FileTaskGroup = {
-				fileName: group.fileName,
-				fileUri: group.fileUri,
-				tasks: visibleTasks
-			};
-
-			nodes.push(new TaskTreeItem(
-				'file',
-				group.fileName,
-				vscode.TreeItemCollapsibleState.Expanded,
-				dateKey,
-				filteredGroup
-			));
-		}
-
-		return nodes;
+		return dateGroup.fileGroups.map(group => new TaskTreeItem(
+			'file',
+			group.fileName,
+			vscode.TreeItemCollapsibleState.Expanded,
+			dateKey,
+			group
+		));
 	}
 
-	private getTaskNodes(fileGroup: FileTaskGroup): TaskTreeItem[] {
-		// 完了タスクを後ろにソート
-		const sorted = [...fileGroup.tasks].sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted));
-
-		return sorted.map(task => new TaskTreeItem(
+	private getTaskNodes(fileGroup: TreeFileGroup): TaskTreeItem[] {
+		return fileGroup.tasks.map(task => new TaskTreeItem(
 			'task',
 			task.text,
 			task.log ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.None,
@@ -243,7 +148,7 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<TaskTreeItem> {
 
 	private async collectAllTasks(): Promise<void> {
 		const allFileUris = await findAllMarkdownUris();
-		this.dateMap = new Map();
+		const files: FileInput[] = [];
 
 		for (const fileUri of allFileUris) {
 			const doc = await vscode.workspace.openTextDocument(fileUri);
@@ -251,44 +156,16 @@ export class TaskTreeProvider implements vscode.TreeDataProvider<TaskTreeItem> {
 			for (let i = 0; i < doc.lineCount; i++) {
 				lines.push(doc.lineAt(i).text);
 			}
-			const tasksInFile = parseTasksAllDates(lines);
-
-			if (tasksInFile.length > 0) {
-				const relativePath = vscode.workspace.asRelativePath(fileUri);
-				const fileName = path.basename(relativePath);
-
-				// 日付ごとにグループ化
-				const byDate = new Map<string, ParsedTaskWithDate[]>();
-				for (const t of tasksInFile) {
-					let arr = byDate.get(t.date);
-					if (!arr) {
-						arr = [];
-						byDate.set(t.date, arr);
-					}
-					arr.push(t);
-				}
-
-				for (const [date, tasks] of byDate) {
-					let groups = this.dateMap.get(date);
-					if (!groups) {
-						groups = [];
-						this.dateMap.set(date, groups);
-					}
-					groups.push({
-						fileName,
-						fileUri: fileUri.toString(),
-						tasks: tasks.map(t => ({
-							isCompleted: t.isCompleted,
-							text: t.text,
-							fileUri: fileUri.toString(),
-							line: t.line,
-							log: t.log,
-							date: t.date
-						}))
-					});
-				}
-			}
+			const relativePath = vscode.workspace.asRelativePath(fileUri);
+			const fileName = path.basename(relativePath);
+			files.push({
+				fileName,
+				fileUri: fileUri.toString(),
+				lines,
+			});
 		}
+
+		this.treeData = buildTreeData(files, this.todayStr);
 	}
 
 }
