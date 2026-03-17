@@ -32,8 +32,6 @@ enum Commands {
         #[arg(long, short)]
         format: Option<String>,
     },
-    /// $HOME/taskiのGit同期を実行
-    Sync,
     /// 今日のジャーナルファイルを開く
     Journal {
         /// パスを表示するだけ（エディタを開かない）
@@ -225,92 +223,6 @@ fn list_tasks(format: Option<String>) {
     }
 }
 
-fn exec_git(args: &[&str]) -> Result<String, String> {
-    let taski = taski_dir();
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(&taski)
-        .output()
-        .unwrap_or_else(|e| {
-            eprintln!("エラー: gitコマンドの実行に失敗しました: {e}");
-            process::exit(1);
-        });
-
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
-    } else {
-        Err(String::from_utf8_lossy(&output.stderr).to_string())
-    }
-}
-
-fn sync() {
-    let taski = taski_dir();
-    if !taski.exists() {
-        eprintln!("エラー: {} が見つかりません", taski.display());
-        process::exit(1);
-    }
-
-    if !taski.join(".git").exists() {
-        eprintln!("エラー: {} はGitリポジトリではありません", taski.display());
-        process::exit(1);
-    }
-
-    // 変更チェック
-    let status = exec_git(&["status", "--porcelain"]).unwrap_or_else(|e| {
-        eprintln!("エラー: git status に失敗しました: {e}");
-        process::exit(1);
-    });
-
-    if !status.trim().is_empty() {
-        println!("変更を検出しました。コミットします...");
-
-        exec_git(&["add", "-A"]).unwrap_or_else(|e| {
-            eprintln!("エラー: git add に失敗しました: {e}");
-            process::exit(1);
-        });
-
-        let now = Local::now();
-        let commit_msg = format!("taski: 自動同期 {}", now.format("%Y-%m-%d %H:%M"));
-
-        exec_git(&["commit", "-m", &commit_msg]).unwrap_or_else(|e| {
-            eprintln!("エラー: git commit に失敗しました: {e}");
-            process::exit(1);
-        });
-
-        println!("コミット完了: {commit_msg}");
-    } else {
-        println!("変更はありません");
-    }
-
-    // Pull rebase
-    println!("リモートから変更を取得します...");
-    if let Err(e) = exec_git(&["pull", "--rebase"]) {
-        if e.contains("CONFLICT") || e.contains("could not apply") || e.contains("Failed to merge")
-        {
-            eprintln!("コンフリクトを検出しました。Rebaseを中断します...");
-            let _ = exec_git(&["rebase", "--abort"]);
-            eprintln!("手動でコンフリクトを解決してください:");
-            eprintln!("  cd {} && git pull --rebase", taski.display());
-            process::exit(1);
-        } else if e.contains("Could not resolve host") || e.contains("unable to access") {
-            eprintln!("ネットワークエラー: {e}");
-            process::exit(1);
-        } else {
-            eprintln!("エラー: git pull に失敗しました: {e}");
-            process::exit(1);
-        }
-    }
-    println!("Pull完了");
-
-    // Push
-    println!("リモートにプッシュします...");
-    if let Err(e) = exec_git(&["push"]) {
-        eprintln!("エラー: git push に失敗しました: {e}");
-        process::exit(1);
-    }
-    println!("Push完了。同期が完了しました。");
-}
-
 fn open_journal(print_only: bool) {
     let file_path = ensure_journal_file();
 
@@ -454,9 +366,6 @@ fn main() {
         }
         Commands::List { format } => {
             list_tasks(format);
-        }
-        Commands::Sync => {
-            sync();
         }
         Commands::Journal { print } => {
             open_journal(print);
