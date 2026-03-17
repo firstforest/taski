@@ -17,7 +17,9 @@
       "Bash(npm run test:*)",
       "Bash(jj st:*)",
       "Bash(jj desc:*)",
-      "Bash(jj diff:*)"
+      "Bash(jj diff:*)",
+      "Bash(cargo build:*)",
+      "Bash(/Users/firstforest/workspace/taski/target/debug/taski memo:*)"
     ]
   }
 }
