@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-VS Code extension ("taski") that aggregates tasks from markdown files across the workspace and displays them organized by date with clickable links back to source files. Written in TypeScript, bundled with esbuild, outputs to `dist/extension.js` as CommonJS. UI strings and code comments are in Japanese.
+VS Code extension ("taski") that aggregates tasks from markdown files across the workspace and displays them organized by date with clickable links back to source files. Written in TypeScript, bundled with esbuild, outputs to `dist/extension.js` as CommonJS. Also includes a Rust CLI for appending memos to journal files from the terminal. Cargo workspace with two crates: `parser-wasm` (WASM parser) and `cli` (CLI tool). UI strings and code comments are in Japanese.
 
 ## Commands
 
@@ -14,6 +14,7 @@ VS Code extension ("taski") that aggregates tasks from markdown files across the
 - `npm run check-types` — TypeScript type-check only (`tsc --noEmit`)
 - `npm run lint` — ESLint on `src/`
 - `npm run build:wasm` — compiles Rust to WASM (already included in `compile` and `package`)
+- `npm run build:cli` — build the CLI binary (`cli/` crate, release mode)
 - `npm run test` — run VS Code extension tests (requires a VS Code instance; uses `@vscode/test-cli` + `@vscode/test-electron`)
 
 Tests require compilation to `out/` first. The `pretest` script handles this: builds WASM, compiles TypeScript to `out/`, copies `src/pkg/` to `out/pkg/` (needed for WASM imports in tests), then runs `compile` and `lint`. The test runner picks up `out/test/**/*.test.js` as configured in `.vscode-test.mjs`.
@@ -86,6 +87,16 @@ The pure parser functions (`parseTasks`, `parseTasksAllDates`) are implemented i
 ## Journal Files
 
 The `openTodayJournal` command creates/opens journal files at `$HOME/taski/journal/<year>/<month>/<year>-<month>-<day>.md`. Directories are created automatically if they don't exist.
+
+## CLI (`cli/`)
+
+Rust CLI (`taski-cli` crate) for appending memos to journal files from the terminal. Part of the Cargo workspace alongside `parser-wasm`.
+
+- **Usage**: `taski memo <text>` appends `- HH:MM: text` to today's journal file. `--no-timestamp` omits the time prefix. Reads from stdin if no text arguments and input is piped.
+- **Journal path**: `$HOME/taski/journal/<year>/<month>/<YYYY-MM-DD>.md` (same as `openTodayJournal` command)
+- **Build**: `npm run build:cli` or `cd cli && cargo build --release` → binary at `target/release/taski`
+- **Install**: `cargo install --path cli`
+- **Dependencies**: `chrono` only
 
 ## Release
 

@@ -149,6 +149,7 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run build:wasm && npm run compile-tests && cp -r src/pkg out/pkg && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
+    "build:cli": "cd cli && cargo build --release",
     "lint": "eslint src",
     "test": "vscode-test"
   },
