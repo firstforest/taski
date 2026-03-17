@@ -27,7 +27,7 @@ enum Commands {
     },
     /// タスク一覧を表示
     List {
-        /// 出力フォーマット（yaml）
+        /// 出力フォーマット（json, yaml）
         #[arg(long, short)]
         format: Option<String>,
     },
@@ -156,6 +156,14 @@ fn list_tasks(format: Option<String>) {
 
     if let Some(fmt) = format {
         match fmt.as_str() {
+            "json" => {
+                let json = serde_json::to_string_pretty(&tree).unwrap_or_else(|e| {
+                    eprintln!("エラー: JSON変換に失敗しました: {e}");
+                    process::exit(1);
+                });
+                println!("{json}");
+                return;
+            }
             "yaml" => {
                 let yaml = serde_yaml::to_string(&tree).unwrap_or_else(|e| {
                     eprintln!("エラー: YAML変換に失敗しました: {e}");
