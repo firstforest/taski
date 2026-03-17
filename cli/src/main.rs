@@ -1,40 +1,48 @@
 use chrono::Local;
+use clap::{Parser, Subcommand};
 use parser_core::{build_tree_data_internal, FileInput};
-use std::env;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::{self, IsTerminal, Read, Write};
 use std::path::PathBuf;
 use std::process;
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+#[derive(Parser)]
+#[command(name = "taski", version, about = "ジャーナルにメモを追記するCLI")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
 
-fn print_help() {
-    println!(
-        "taski {VERSION} — ジャーナルにメモを追記するCLI
+#[derive(Subcommand)]
+enum Commands {
+    /// タイムスタンプ付きでメモを追記
+    Memo {
+        /// タイムスタンプを付けない
+        #[arg(long)]
+        no_timestamp: bool,
 
-使い方:
-  taski memo <テキスト>              タイムスタンプ付きでメモを追記
-  taski memo --no-timestamp <テキスト>  タイムスタンプなしでメモを追記
-  echo \"テキスト\" | taski memo      stdinからメモを読み取り
-  taski list                        タスク一覧を表示
-
-オプション:
-  --help, -h       ヘルプを表示
-  --version, -V    バージョンを表示"
-    );
+        /// メモのテキスト（省略時はstdinから読み取り）
+        text: Vec<String>,
+    },
+    /// タスク一覧を表示
+    List,
 }
 
 fn taski_dir() -> PathBuf {
-    let home = env::var("HOME").unwrap_or_else(|_| {
-        eprintln!("エラー: HOME環境変数が設定されていません");
-        process::exit(1);
-    });
+    let home = env("HOME");
     PathBuf::from(home).join("taski")
 }
 
 fn journal_dir() -> PathBuf {
     taski_dir().join("journal")
+}
+
+fn env(key: &str) -> String {
+    std::env::var(key).unwrap_or_else(|_| {
+        eprintln!("エラー: {key}環境変数が設定されていません");
+        process::exit(1);
+    })
 }
 
 fn append_memo(text: &str, no_timestamp: bool) {
@@ -167,30 +175,11 @@ fn list_tasks() {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().skip(1).collect();
+    let cli = Cli::parse();
 
-    if args.is_empty() {
-        print_help();
-        process::exit(0);
-    }
-
-    match args[0].as_str() {
-        "--help" | "-h" => {
-            print_help();
-        }
-        "--version" | "-V" => {
-            println!("taski {VERSION}");
-        }
-        "memo" => {
-            let rest = &args[1..];
-            let (no_timestamp, text_args) = if rest.first().map(|s| s.as_str()) == Some("--no-timestamp") {
-                (true, &rest[1..])
-            } else {
-                (false, rest)
-            };
-
-            let text = if text_args.is_empty() {
-                // stdinから読み取り
+    match cli.command {
+        Commands::Memo { no_timestamp, text } => {
+            let memo_text = if text.is_empty() {
                 if io::stdin().is_terminal() {
                     eprintln!("エラー: メモのテキストを指定してください");
                     process::exit(1);
@@ -202,23 +191,18 @@ fn main() {
                 });
                 buf.trim().to_string()
             } else {
-                text_args.join(" ")
+                text.join(" ")
             };
 
-            if text.is_empty() {
+            if memo_text.is_empty() {
                 eprintln!("エラー: メモのテキストが空です");
                 process::exit(1);
             }
 
-            append_memo(&text, no_timestamp);
+            append_memo(&memo_text, no_timestamp);
         }
-        "list" => {
+        Commands::List => {
             list_tasks();
-        }
-        other => {
-            eprintln!("エラー: 不明なサブコマンド '{other}'");
-            eprintln!("ヘルプを表示するには: taski --help");
-            process::exit(1);
         }
     }
 }

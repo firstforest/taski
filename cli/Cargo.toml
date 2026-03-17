@@ -9,4 +9,5 @@ path = "src/main.rs"
 
 [dependencies]
 chrono = "0.4"
+clap = { version = "4", features = ["derive"] }
 parser-core = { path = "../parser-core" }
