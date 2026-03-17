@@ -9,3 +9,4 @@ path = "src/main.rs"
 
 [dependencies]
 chrono = "0.4"
+parser-core = { path = "../parser-core" }

@@ -1,4 +1,5 @@
 use chrono::Local;
+use parser_core::{build_tree_data_internal, FileInput};
 use std::env;
 use std::fs;
 use std::fs::OpenOptions;
@@ -16,6 +17,7 @@ fn print_help() {
   taski memo <テキスト>              タイムスタンプ付きでメモを追記
   taski memo --no-timestamp <テキスト>  タイムスタンプなしでメモを追記
   echo \"テキスト\" | taski memo      stdinからメモを読み取り
+  taski list                        タスク一覧を表示
 
 オプション:
   --help, -h       ヘルプを表示
@@ -23,12 +25,16 @@ fn print_help() {
     );
 }
 
-fn journal_dir() -> PathBuf {
+fn taski_dir() -> PathBuf {
     let home = env::var("HOME").unwrap_or_else(|_| {
         eprintln!("エラー: HOME環境変数が設定されていません");
         process::exit(1);
     });
-    PathBuf::from(home).join("taski").join("journal")
+    PathBuf::from(home).join("taski")
+}
+
+fn journal_dir() -> PathBuf {
+    taski_dir().join("journal")
 }
 
 fn append_memo(text: &str, no_timestamp: bool) {
@@ -73,6 +79,91 @@ fn append_memo(text: &str, no_timestamp: bool) {
     });
 
     println!("追記しました: {}", file_path.display());
+}
+
+fn collect_md_files(dir: &PathBuf) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    collect_md_files_recursive(dir, &mut files);
+    files.sort();
+    files
+}
+
+fn collect_md_files_recursive(dir: &PathBuf, files: &mut Vec<PathBuf>) {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_md_files_recursive(&path, files);
+        } else if path.extension().map_or(false, |ext| ext == "md") {
+            files.push(path);
+        }
+    }
+}
+
+fn list_tasks() {
+    let base_dir = taski_dir();
+    if !base_dir.exists() {
+        eprintln!("エラー: {} が見つかりません", base_dir.display());
+        process::exit(1);
+    }
+
+    let md_files = collect_md_files(&base_dir);
+    if md_files.is_empty() {
+        println!("タスクが見つかりません");
+        return;
+    }
+
+    let files: Vec<FileInput> = md_files
+        .iter()
+        .filter_map(|path| {
+            let content = fs::read_to_string(path).ok()?;
+            let lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+            let file_name = path
+                .strip_prefix(&base_dir)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .to_string();
+            Some(FileInput {
+                file_name,
+                file_uri: path.to_string_lossy().to_string(),
+                lines,
+            })
+        })
+        .collect();
+
+    let today_str = Local::now().format("%Y-%m-%d").to_string();
+    let tree = build_tree_data_internal(files, &today_str);
+
+    if tree.is_empty() {
+        println!("未完了のタスクはありません");
+        return;
+    }
+
+    for (i, date_group) in tree.iter().enumerate() {
+        if i > 0 {
+            println!();
+        }
+        println!("\x1b[1m{}\x1b[0m", date_group.label);
+
+        for file_group in &date_group.file_groups {
+            println!("  \x1b[36m{}\x1b[0m", file_group.file_name);
+            for task in &file_group.tasks {
+                let checkbox = if task.is_completed {
+                    "\x1b[32m[x]\x1b[0m"
+                } else {
+                    "\x1b[33m[ ]\x1b[0m"
+                };
+                if task.log.is_empty() {
+                    println!("    {} {}", checkbox, task.text);
+                } else {
+                    println!("    {} {}  \x1b[2m{}\x1b[0m", checkbox, task.text, task.log);
+                }
+            }
+        }
+    }
 }
 
 fn main() {
@@ -120,6 +211,9 @@ fn main() {
             }
 
             append_memo(&text, no_timestamp);
+        }
+        "list" => {
+            list_tasks();
         }
         other => {
             eprintln!("エラー: 不明なサブコマンド '{other}'");
