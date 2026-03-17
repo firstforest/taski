@@ -26,7 +26,11 @@ enum Commands {
         text: Vec<String>,
     },
     /// タスク一覧を表示
-    List,
+    List {
+        /// 出力フォーマット（yaml）
+        #[arg(long, short)]
+        format: Option<String>,
+    },
 }
 
 fn taski_dir() -> PathBuf {
@@ -111,7 +115,7 @@ fn collect_md_files_recursive(dir: &PathBuf, files: &mut Vec<PathBuf>) {
     }
 }
 
-fn list_tasks() {
+fn list_tasks(format: Option<String>) {
     let base_dir = taski_dir();
     if !base_dir.exists() {
         eprintln!("エラー: {} が見つかりません", base_dir.display());
@@ -148,6 +152,23 @@ fn list_tasks() {
     if tree.is_empty() {
         println!("未完了のタスクはありません");
         return;
+    }
+
+    if let Some(fmt) = format {
+        match fmt.as_str() {
+            "yaml" => {
+                let yaml = serde_yaml::to_string(&tree).unwrap_or_else(|e| {
+                    eprintln!("エラー: YAML変換に失敗しました: {e}");
+                    process::exit(1);
+                });
+                print!("{yaml}");
+                return;
+            }
+            _ => {
+                eprintln!("エラー: 未対応のフォーマットです: {fmt}");
+                process::exit(1);
+            }
+        }
     }
 
     for (i, date_group) in tree.iter().enumerate() {
@@ -201,8 +222,8 @@ fn main() {
 
             append_memo(&memo_text, no_timestamp);
         }
-        Commands::List => {
-            list_tasks();
+        Commands::List { format } => {
+            list_tasks(format);
         }
     }
 }
