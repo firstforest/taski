@@ -21,7 +21,8 @@
       "Bash(cargo build:*)",
       "Bash(/Users/firstforest/workspace/taski/target/debug/taski memo:*)",
       "Bash(cargo run:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(cargo test:*)"
     ]
   }
 }
