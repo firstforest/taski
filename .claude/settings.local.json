@@ -22,7 +22,9 @@
       "Bash(/Users/firstforest/workspace/taski/target/debug/taski memo:*)",
       "Bash(cargo run:*)",
       "Bash(npm run:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(mise ls:*)",
+      "Bash(mise where:*)"
     ]
   }
 }
