@@ -2,6 +2,37 @@
 node = "latest"
 rust = "latest"
 
+[settings]
+env_shell_expand = true
+
+[env]
+RUSTUP_HOME="$HOME/.rustup"
+CARGO_HOME="$HOME/.cargo"
+
+[tasks.build-wasm]
+description = "Rust を WASM にコンパイルして src/pkg/ に出力"
+run = "npm run build:wasm"
+
+[tasks.build-cli]
+description = "CLI バイナリをビルド"
+run = "npm run build:cli"
+
+[tasks.test-rust]
+description = "Rust テストを実行"
+run = "cargo test"
+
+[tasks.compile]
+description = "フルビルド（WASM + type-check + lint + esbuild）"
+run = "npm run compile"
+
+[tasks.package]
+description = "プロダクションビルド（WASM + type-check + lint + minified esbuild）"
+run = "npm run package"
+
+[tasks.check]
+description = "TypeScript type-check + lint"
+run = "npm run check-types && npm run lint"
+
 [tasks.download]
 run = [
     "echo Downloading files...",
