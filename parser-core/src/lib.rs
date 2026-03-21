@@ -338,6 +338,15 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
     let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
     let date_re =
         Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?:\s*(.*)").unwrap();
+    let time_memo_re = Regex::new(r"^- (\d{1,2}:\d{2}): (.+)").unwrap();
+    let heading_date_re = Regex::new(r"^#\s+(\d{4}-\d{2}-\d{2})").unwrap();
+
+    // ジャーナルファイルの日付見出しが target_date と一致するか判定
+    let is_target_date_file = lines.iter().any(|line| {
+        heading_date_re
+            .captures(line)
+            .map_or(false, |caps| &caps[1] == target_date)
+    });
 
     let mut entries: Vec<ScheduleEntry> = Vec::new();
     let mut current_task: Option<CurrentTask> = None;
@@ -371,6 +380,30 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
                         file_uri: String::new(),
                     });
                 }
+            }
+            continue;
+        }
+
+        // 時刻メモ: ジャーナルファイル内のトップレベル「- HH:MM: テキスト」行
+        if is_target_date_file {
+            if let Some(caps) = time_memo_re.captures(text) {
+                let time_str = &caps[1];
+                let memo_text = &caps[2];
+                // 時刻を2桁にパディング（例: "9:30" → "09:30"）
+                let time_padded = if time_str.len() == 4 {
+                    format!("0{}", time_str)
+                } else {
+                    time_str.to_string()
+                };
+                entries.push(ScheduleEntry {
+                    task_text: String::new(),
+                    task_line: i,
+                    is_completed: false,
+                    log_text: memo_text.to_string(),
+                    log_line: i,
+                    time: time_padded,
+                    file_uri: String::new(),
+                });
             }
         }
     }
@@ -875,6 +908,84 @@ mod tests {
         let result = parse_schedule_internal(&l, "2026-03-21");
         assert_eq!(result.len(), 1);
         assert!(result[0].is_completed);
+    }
+
+    // --- parse_schedule_internal time memo tests ---
+
+    #[test]
+    fn test_parse_schedule_time_memo_in_journal() {
+        let l = lines(&[
+            "# 2026-03-21",
+            "",
+            "- 09:30: 散歩した",
+            "- 14:00: コーヒー飲んだ",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].time, "09:30");
+        assert_eq!(result[0].log_text, "散歩した");
+        assert_eq!(result[0].task_text, "");
+        assert!(!result[0].is_completed);
+        assert_eq!(result[1].time, "14:00");
+        assert_eq!(result[1].log_text, "コーヒー飲んだ");
+    }
+
+    #[test]
+    fn test_parse_schedule_time_memo_single_digit_hour() {
+        let l = lines(&["# 2026-03-21", "", "- 9:30: 朝の散歩"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].time, "09:30");
+        assert_eq!(result[0].log_text, "朝の散歩");
+    }
+
+    #[test]
+    fn test_parse_schedule_time_memo_wrong_date_ignored() {
+        let l = lines(&["# 2026-03-20", "", "- 09:30: 昨日のメモ"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_schedule_time_memo_no_heading_ignored() {
+        // 日付見出しがないファイルでは時刻メモを拾わない
+        let l = lines(&["- 09:30: メモ"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_schedule_time_memo_mixed_with_tasks() {
+        let l = lines(&[
+            "# 2026-03-21",
+            "",
+            "- 09:00: 朝ごはん",
+            "- [ ] タスクA",
+            "    - 2026-03-21 10:00: 作業開始",
+            "- 12:00: 昼休み",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 3);
+        // 時刻メモ
+        assert_eq!(result[0].time, "09:00");
+        assert_eq!(result[0].log_text, "朝ごはん");
+        assert_eq!(result[0].task_text, "");
+        // タスクログ
+        assert_eq!(result[1].time, "10:00");
+        assert_eq!(result[1].log_text, "作業開始");
+        assert_eq!(result[1].task_text, "タスクA");
+        // 時刻メモ
+        assert_eq!(result[2].time, "12:00");
+        assert_eq!(result[2].log_text, "昼休み");
+        assert_eq!(result[2].task_text, "");
+    }
+
+    #[test]
+    fn test_parse_schedule_indented_time_not_memo() {
+        // インデントされた行は時刻メモとして拾わない
+        let l = lines(&["# 2026-03-21", "", "  - 09:30: インデントあり"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 0);
     }
 
     // --- build_schedule_data_internal tests ---
