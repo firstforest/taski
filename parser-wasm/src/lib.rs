@@ -1,7 +1,8 @@
 use wasm_bindgen::prelude::*;
 
 pub use parser_core::{
-    FileInput, ParsedTask, ParsedTaskWithDate, TreeDateGroup, TreeFileGroup, TreeTaskData,
+    FileInput, ParsedTask, ParsedTaskWithDate, ScheduleEntry, TreeDateGroup, TreeFileGroup,
+    TreeTaskData,
 };
 
 // === WASM exports ===
@@ -24,5 +25,12 @@ pub fn parse_tasks_all_dates(lines_js: JsValue) -> JsValue {
 pub fn build_tree_data(files_js: JsValue, today_str: &str) -> JsValue {
     let files: Vec<FileInput> = serde_wasm_bindgen::from_value(files_js).unwrap_or_default();
     let result = parser_core::build_tree_data_internal(files, today_str);
+    serde_wasm_bindgen::to_value(&result).unwrap()
+}
+
+#[wasm_bindgen(js_name = "buildScheduleData")]
+pub fn build_schedule_data(files_js: JsValue, target_date: &str) -> JsValue {
+    let files: Vec<FileInput> = serde_wasm_bindgen::from_value(files_js).unwrap_or_default();
+    let result = parser_core::build_schedule_data_internal(files, target_date);
     serde_wasm_bindgen::to_value(&result).unwrap()
 }

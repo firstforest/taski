@@ -63,6 +63,11 @@
         "command": "taski.syncNow",
         "title": "Sync Now (Git)",
         "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "taski.showSchedule",
+        "title": "Show Schedule Grid",
+        "icon": "$(calendar)"
       }
     ],
     "keybindings": [
@@ -95,6 +100,11 @@
         {
           "command": "taski.syncNow",
           "when": "view == taskiView && config.taski.gitAutoSync",
+          "group": "navigation"
+        },
+        {
+          "command": "taski.showSchedule",
+          "when": "view == taskiView",
           "group": "navigation"
         }
       ]

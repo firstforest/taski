@@ -4,6 +4,7 @@ import * as os from 'os';
 import { TaskTreeProvider } from './taskTreeProvider';
 import { GitSyncManager } from './gitSync';
 import { TagTreeProvider } from './tagTreeProvider';
+import { SchedulePanel } from './schedulePanel';
 
 export interface ParsedTask {
 	isCompleted: boolean;
@@ -16,9 +17,9 @@ export interface ParsedTaskWithDate extends ParsedTask {
 	date: string;
 }
 
-import { parseTasks, parseTasksAllDates, buildTreeData } from './parser';
-export { parseTasks, parseTasksAllDates, buildTreeData };
-export type { FileInput, TreeTaskData, TreeFileGroup, TreeDateGroup } from './parser';
+import { parseTasks, parseTasksAllDates, buildTreeData, buildScheduleData } from './parser';
+export { parseTasks, parseTasksAllDates, buildTreeData, buildScheduleData };
+export type { FileInput, TreeTaskData, TreeFileGroup, TreeDateGroup, ScheduleEntry } from './parser';
 
 export function activate(context: vscode.ExtensionContext) {
 
@@ -63,11 +64,12 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(openTaskLocationDisposable);
 
-	// mdファイル保存時にTreeViewを自動更新
+	// mdファイル保存時にTreeViewとスケジュールパネルを自動更新
 	const onSaveDisposable = vscode.workspace.onDidSaveTextDocument(async (doc) => {
 		if (doc.languageId === 'markdown') {
 			taskTreeProvider.refresh();
 			tagTreeProvider.refresh();
+			SchedulePanel.currentPanel?.refresh();
 		}
 	});
 	context.subscriptions.push(onSaveDisposable);
@@ -251,6 +253,12 @@ export function activate(context: vscode.ExtensionContext) {
 		gitSyncManager.syncNow();
 	});
 	context.subscriptions.push(syncNowDisposable);
+
+	// スケジュールグリッドを開くコマンド
+	const showScheduleDisposable = vscode.commands.registerCommand('taski.showSchedule', () => {
+		SchedulePanel.createOrShow();
+	});
+	context.subscriptions.push(showScheduleDisposable);
 
 	// OutputChannelを開くコマンド（コンフリクト時用）
 	const openGitSyncOutputDisposable = vscode.commands.registerCommand('taski.openGitSyncOutput', () => {

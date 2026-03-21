@@ -2,6 +2,7 @@ import {
 	parseTasks as wasmParseTasks,
 	parseTasksAllDates as wasmParseTasksAllDates,
 	buildTreeData as wasmBuildTreeData,
+	buildScheduleData as wasmBuildScheduleData,
 } from './pkg/parser_wasm';
 import type { ParsedTask, ParsedTaskWithDate } from './extension';
 
@@ -45,4 +46,18 @@ export function parseTasksAllDates(lines: string[]): ParsedTaskWithDate[] {
 
 export function buildTreeData(files: FileInput[], todayStr: string): TreeDateGroup[] {
 	return wasmBuildTreeData(files, todayStr) as TreeDateGroup[];
+}
+
+export interface ScheduleEntry {
+	taskText: string;
+	taskLine: number;
+	isCompleted: boolean;
+	logText: string;
+	logLine: number;
+	time: string;
+	fileUri: string;
+}
+
+export function buildScheduleData(files: FileInput[], targetDate: string): ScheduleEntry[] {
+	return wasmBuildScheduleData(files, targetDate) as ScheduleEntry[];
 }

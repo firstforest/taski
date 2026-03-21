@@ -73,6 +73,20 @@ pub struct TreeDateGroup {
     pub total_count: usize,
 }
 
+// === Schedule types ===
+
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduleEntry {
+    pub task_text: String,
+    pub task_line: usize,
+    pub is_completed: bool,
+    pub log_text: String,
+    pub log_line: usize,
+    pub time: String,
+    pub file_uri: String,
+}
+
 // === Parsing logic ===
 
 pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTask> {
@@ -316,6 +330,78 @@ pub fn build_tree_data_internal(files: Vec<FileInput>, today_str: &str) -> Vec<T
     }
 
     result
+}
+
+// === Schedule parsing ===
+
+pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<ScheduleEntry> {
+    let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
+    let date_re =
+        Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?:\s*(.*)").unwrap();
+
+    let mut entries: Vec<ScheduleEntry> = Vec::new();
+    let mut current_task: Option<CurrentTask> = None;
+
+    for (i, text) in lines.iter().enumerate() {
+        if let Some(caps) = task_re.captures(text) {
+            current_task = Some(CurrentTask {
+                indent: caps[1].len(),
+                completed: &caps[2] == "x",
+                text: caps[3].to_string(),
+                line: i,
+            });
+            continue;
+        }
+
+        if let Some(caps) = date_re.captures(text) {
+            if let Some(ref ct) = current_task {
+                let date_indent = caps[1].len();
+                let date_str = &caps[2];
+                let time_str = caps.get(3).map_or("", |m| m.as_str());
+                let log_content = &caps[4];
+
+                if date_str == target_date && date_indent > ct.indent {
+                    entries.push(ScheduleEntry {
+                        task_text: ct.text.clone(),
+                        task_line: ct.line,
+                        is_completed: ct.completed,
+                        log_text: log_content.to_string(),
+                        log_line: i,
+                        time: time_str.to_string(),
+                        file_uri: String::new(),
+                    });
+                }
+            }
+        }
+    }
+
+    entries
+}
+
+pub fn build_schedule_data_internal(
+    files: Vec<FileInput>,
+    target_date: &str,
+) -> Vec<ScheduleEntry> {
+    let mut all_entries: Vec<ScheduleEntry> = Vec::new();
+
+    for file in &files {
+        let mut entries = parse_schedule_internal(&file.lines, target_date);
+        for entry in &mut entries {
+            entry.file_uri = file.file_uri.clone();
+        }
+        all_entries.extend(entries);
+    }
+
+    // 時刻順にソート（空文字は末尾）
+    all_entries.sort_by(|a, b| {
+        match (a.time.is_empty(), b.time.is_empty()) {
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => a.time.cmp(&b.time),
+        }
+    });
+
+    all_entries
 }
 
 // === Tests ===
@@ -708,5 +794,142 @@ mod tests {
         assert!(!tasks[0].is_completed);
         assert!(tasks[1].is_completed);
         assert!(tasks[2].is_completed);
+    }
+
+    // --- parse_schedule_internal tests ---
+
+    #[test]
+    fn test_parse_schedule_with_time() {
+        let l = lines(&["- [ ] タスクA", "    - 2026-03-21 09:00: ミーティング"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].task_text, "タスクA");
+        assert_eq!(result[0].time, "09:00");
+        assert_eq!(result[0].log_text, "ミーティング");
+        assert!(!result[0].is_completed);
+    }
+
+    #[test]
+    fn test_parse_schedule_no_time() {
+        let l = lines(&["- [ ] タスクA", "    - 2026-03-21: ログ"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].time, "");
+        assert_eq!(result[0].log_text, "ログ");
+    }
+
+    #[test]
+    fn test_parse_schedule_log_line() {
+        let l = lines(&[
+            "# ヘッダー",
+            "",
+            "- [ ] タスク",
+            "    - 2026-03-21 10:00: ログ",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].task_line, 2);
+        assert_eq!(result[0].log_line, 3);
+    }
+
+    #[test]
+    fn test_parse_schedule_indent_rules() {
+        let l = lines(&[
+            "    - [ ] タスク（インデント4）",
+            "    - 2026-03-21 09:00: 同レベルのログ",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_parse_schedule_multiple_times() {
+        let l = lines(&[
+            "- [ ] タスクA",
+            "    - 2026-03-21 09:00: 朝",
+            "    - 2026-03-21 14:00: 午後",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].time, "09:00");
+        assert_eq!(result[0].log_text, "朝");
+        assert_eq!(result[1].time, "14:00");
+        assert_eq!(result[1].log_text, "午後");
+    }
+
+    #[test]
+    fn test_parse_schedule_wrong_date_ignored() {
+        let l = lines(&[
+            "- [ ] タスク",
+            "    - 2026-03-20 09:00: 昨日のログ",
+            "    - 2026-03-21 09:00: 今日のログ",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].log_text, "今日のログ");
+    }
+
+    #[test]
+    fn test_parse_schedule_completed_task() {
+        let l = lines(&["- [x] 完了タスク", "    - 2026-03-21 10:00: 完了"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert!(result[0].is_completed);
+    }
+
+    // --- build_schedule_data_internal tests ---
+
+    #[test]
+    fn test_build_schedule_data_sorted_by_time() {
+        let files = vec![FileInput {
+            file_name: s("test.md"),
+            file_uri: s("file:///test.md"),
+            lines: lines(&[
+                "- [ ] タスクB",
+                "    - 2026-03-21 14:00: 午後",
+                "- [ ] タスクA",
+                "    - 2026-03-21 09:00: 朝",
+                "- [ ] タスクC",
+                "    - 2026-03-21: 時刻なし",
+            ]),
+        }];
+        let result = build_schedule_data_internal(files, "2026-03-21");
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0].time, "09:00");
+        assert_eq!(result[0].task_text, "タスクA");
+        assert_eq!(result[1].time, "14:00");
+        assert_eq!(result[1].task_text, "タスクB");
+        assert_eq!(result[2].time, "");
+        assert_eq!(result[2].task_text, "タスクC");
+    }
+
+    #[test]
+    fn test_build_schedule_data_multiple_files() {
+        let files = vec![
+            FileInput {
+                file_name: s("file1.md"),
+                file_uri: s("file:///file1.md"),
+                lines: lines(&["- [ ] タスク1", "    - 2026-03-21 09:00: ログ1"]),
+            },
+            FileInput {
+                file_name: s("file2.md"),
+                file_uri: s("file:///file2.md"),
+                lines: lines(&["- [ ] タスク2", "    - 2026-03-21 10:00: ログ2"]),
+            },
+        ];
+        let result = build_schedule_data_internal(files, "2026-03-21");
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].file_uri, "file:///file1.md");
+        assert_eq!(result[1].file_uri, "file:///file2.md");
+    }
+
+    #[test]
+    fn test_parse_schedule_backward_compat_old_parser() {
+        // 既存パーサーは時刻をログテキストの一部として扱う
+        let l = lines(&["- [ ] タスク", "    - 2026-03-21 09:00: ログ"]);
+        let result = parse_tasks_internal(&l, "2026-03-21");
+        // 既存パーサーはこの形式にマッチしない（時刻がある場合）
+        // date_reが `YYYY-MM-DD:` のみマッチするため
+        assert_eq!(result.len(), 0);
     }
 }
