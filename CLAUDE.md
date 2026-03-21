@@ -72,9 +72,9 @@ By default, `$HOME/taski` is always scanned if it exists, regardless of configur
 
 ## Prerequisites
 
-- **Rust toolchain** — `rustc` and `cargo` must be installed (via [rustup](https://rustup.rs/))
-- **wasm-pack** — required for building the WASM parser (`cargo install wasm-pack`)
-- **wasm32-unknown-unknown target** — `rustup target add wasm32-unknown-unknown`
+- **Rust toolchain** — `rustc` and `cargo` are managed via [mise](https://mise.jdx.dev/)（`mise.toml` で定義）。`cargo`、`rustup`、`wasm-pack` などの Rust 関連コマンドは必ず `mise exec --` 経由で実行すること（例: `mise exec -- cargo build`、`mise exec -- wasm-pack build`）。直接実行すると `RUSTUP_HOME` が正しく解決されない場合がある。
+- **wasm-pack** — required for building the WASM parser (`mise exec -- cargo install wasm-pack`)
+- **wasm32-unknown-unknown target** — `mise exec -- rustup target add wasm32-unknown-unknown`
 
 ## WASM Parser
 
