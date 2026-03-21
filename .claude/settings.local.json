@@ -24,7 +24,18 @@
       "Bash(npm run:*)",
       "Bash(cargo test:*)",
       "Bash(mise ls:*)",
-      "Bash(mise where:*)"
+      "Bash(mise where:*)",
+      "Bash(mise exec:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:mise.jdx.dev)",
+      "Bash(mise --version)",
+      "Bash(mise env:*)",
+      "Bash(mise doctor:*)",
+      "Bash(env)",
+      "Bash(env -u CARGO_HOME -u RUSTUP_HOME mise env -C /Users/firstforest/workspace/taski)",
+      "Bash(zsh -xlic 'exit')",
+      "Bash(MISE_LOG_LEVEL=debug mise env -C /Users/firstforest/workspace/taski)",
+      "Bash(mise run:*)"
     ]
   }
 }
