@@ -4,7 +4,7 @@
   "description": "Aggregate tasks from markdown files and display them organized by date",
   "version": "0.0.18",
   "engines": {
-    "vscode": "^1.108.1"
+    "vscode": "^1.110.0"
   },
   "categories": [
     "Other"
