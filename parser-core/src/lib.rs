@@ -84,6 +84,7 @@ pub struct ScheduleEntry {
     pub log_text: String,
     pub log_line: usize,
     pub time: String,
+    pub end_time: String,
     pub file_uri: String,
 }
 
@@ -334,10 +335,22 @@ pub fn build_tree_data_internal(files: Vec<FileInput>, today_str: &str) -> Vec<T
 
 // === Schedule parsing ===
 
+fn pad_time(time: &str) -> String {
+    if time.is_empty() {
+        return String::new();
+    }
+    // "9:30" → "09:30"
+    if time.len() == 4 {
+        format!("0{}", time)
+    } else {
+        time.to_string()
+    }
+}
+
 pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<ScheduleEntry> {
     let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
     let date_re =
-        Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?:\s*(.*)").unwrap();
+        Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{1,2}:\d{2})(?:-(\d{1,2}:\d{2}))?)?:\s*(.*)").unwrap();
     let time_memo_re = Regex::new(r"^- (\d{1,2}:\d{2}): (.+)").unwrap();
     let heading_date_re = Regex::new(r"^#\s+(\d{4}-\d{2}-\d{2})").unwrap();
 
@@ -367,16 +380,21 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
                 let date_indent = caps[1].len();
                 let date_str = &caps[2];
                 let time_str = caps.get(3).map_or("", |m| m.as_str());
-                let log_content = &caps[4];
+                let end_time_str = caps.get(4).map_or("", |m| m.as_str());
+                let log_content = &caps[5];
 
                 if date_str == target_date && date_indent > ct.indent {
+                    // 時刻を2桁にパディング
+                    let time_padded = pad_time(time_str);
+                    let end_time_padded = pad_time(end_time_str);
                     entries.push(ScheduleEntry {
                         task_text: ct.text.clone(),
                         task_line: ct.line,
                         is_completed: ct.completed,
                         log_text: log_content.to_string(),
                         log_line: i,
-                        time: time_str.to_string(),
+                        time: time_padded,
+                        end_time: end_time_padded,
                         file_uri: String::new(),
                     });
                 }
@@ -389,12 +407,7 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
             if let Some(caps) = time_memo_re.captures(text) {
                 let time_str = &caps[1];
                 let memo_text = &caps[2];
-                // 時刻を2桁にパディング（例: "9:30" → "09:30"）
-                let time_padded = if time_str.len() == 4 {
-                    format!("0{}", time_str)
-                } else {
-                    time_str.to_string()
-                };
+                let time_padded = pad_time(time_str);
                 entries.push(ScheduleEntry {
                     task_text: String::new(),
                     task_line: i,
@@ -402,6 +415,7 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
                     log_text: memo_text.to_string(),
                     log_line: i,
                     time: time_padded,
+                    end_time: String::new(),
                     file_uri: String::new(),
                 });
             }
@@ -1032,6 +1046,41 @@ mod tests {
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].file_uri, "file:///file1.md");
         assert_eq!(result[1].file_uri, "file:///file2.md");
+    }
+
+    #[test]
+    fn test_parse_schedule_time_range() {
+        let l = lines(&[
+            "- [ ] ミーティング",
+            "    - 2026-03-21 13:00-14:00: 定例会議",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].time, "13:00");
+        assert_eq!(result[0].end_time, "14:00");
+        assert_eq!(result[0].task_text, "ミーティング");
+        assert_eq!(result[0].log_text, "定例会議");
+    }
+
+    #[test]
+    fn test_parse_schedule_time_range_single_digit() {
+        let l = lines(&[
+            "- [ ] 朝会",
+            "    - 2026-03-21 9:00-9:30: スタンドアップ",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].time, "09:00");
+        assert_eq!(result[0].end_time, "09:30");
+    }
+
+    #[test]
+    fn test_parse_schedule_no_end_time() {
+        let l = lines(&["- [ ] タスク", "    - 2026-03-21 10:00: ログ"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].time, "10:00");
+        assert_eq!(result[0].end_time, "");
     }
 
     #[test]

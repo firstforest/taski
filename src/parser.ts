@@ -55,6 +55,7 @@ export interface ScheduleEntry {
 	logText: string;
 	logLine: number;
 	time: string;
+	endTime: string;
 	fileUri: string;
 }
 

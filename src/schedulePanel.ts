@@ -86,10 +86,22 @@ export class SchedulePanel {
 		// エントリを時刻スロットにマッピング
 		const slotMap = new Map<string, ScheduleEntry[]>();
 		const noTimeEntries: ScheduleEntry[] = [];
+		// 帯スケジュール: 開始スロットから終了スロットまでの範囲を持つエントリ
+		const bandEntries: { entry: ScheduleEntry; startSlot: string; endSlot: string; spanCount: number }[] = [];
 
 		for (const entry of entries) {
 			if (entry.time === '') {
 				noTimeEntries.push(entry);
+				continue;
+			}
+			if (entry.endTime !== '') {
+				// 帯スケジュール
+				const startSlot = roundToSlot(entry.time);
+				const endSlot = roundToSlot(entry.endTime);
+				const startIdx = slots.indexOf(startSlot);
+				const endIdx = slots.indexOf(endSlot);
+				const spanCount = startIdx >= 0 && endIdx > startIdx ? endIdx - startIdx : 1;
+				bandEntries.push({ entry, startSlot, endSlot, spanCount });
 				continue;
 			}
 			// 15分単位に切り捨て
@@ -100,32 +112,79 @@ export class SchedulePanel {
 			slotMap.get(roundedTime)!.push(entry);
 		}
 
+		// 帯エントリがカバーするスロットを記録
+		const bandSlotMap = new Map<string, { entry: ScheduleEntry; isStart: boolean; spanCount: number }[]>();
+		for (const band of bandEntries) {
+			const startIdx = slots.indexOf(band.startSlot);
+			if (startIdx < 0) {
+				continue;
+			}
+			for (let si = startIdx; si < startIdx + band.spanCount && si < slots.length; si++) {
+				if (!bandSlotMap.has(slots[si])) {
+					bandSlotMap.set(slots[si], []);
+				}
+				bandSlotMap.get(slots[si])!.push({
+					entry: band.entry,
+					isStart: si === startIdx,
+					spanCount: band.spanCount,
+				});
+			}
+		}
+
 		// 現在時刻のスロットを計算
 		const now = new Date();
 		const currentSlot = `${String(now.getHours()).padStart(2, '0')}:${String(Math.floor(now.getMinutes() / 15) * 15).padStart(2, '0')}`;
 
 		// テーブル行を生成
 		let tableRows = '';
-		for (const slot of slots) {
+		for (let slotIdx = 0; slotIdx < slots.length; slotIdx++) {
+			const slot = slots[slotIdx];
 			const slotEntries = slotMap.get(slot) || [];
+			const bandItems = bandSlotMap.get(slot) || [];
 			const isCurrent = slot === currentSlot;
 			const rowClass = isCurrent ? ' class="current-slot"' : '';
 
-			if (slotEntries.length === 0) {
+			// このスロットで開始する帯エントリ
+			const bandStarts = bandItems.filter(b => b.isStart);
+			// このスロットが帯の途中（開始でない）か
+			const isBandContinuation = bandItems.length > 0 && bandStarts.length === 0;
+
+			const totalEntries = slotEntries.length + bandStarts.length;
+
+			if (totalEntries === 0 && !isBandContinuation) {
 				tableRows += `<tr${rowClass}>
 					<td class="time-cell">${slot}</td>
 					<td class="plan-cell"></td>
 					<td class="actual-cell"></td>
 				</tr>\n`;
+			} else if (totalEntries === 0 && isBandContinuation) {
+				// 帯の途中スロット: 時間セルと実績セルのみ（予定セルは rowspan でカバー済み）
+				tableRows += `<tr${rowClass}>
+					<td class="time-cell">${slot}</td>
+					<td class="actual-cell"></td>
+				</tr>\n`;
 			} else {
-				for (let j = 0; j < slotEntries.length; j++) {
-					const e = slotEntries[j];
+				let rowIdx = 0;
+				// 帯エントリ（開始スロット）
+				for (const band of bandStarts) {
+					const e = band.entry;
 					const completedClass = e.isCompleted ? ' completed' : '';
 					tableRows += `<tr${rowClass}>
-						${j === 0 ? `<td class="time-cell" rowspan="${slotEntries.length}">${slot}</td>` : ''}
+						${rowIdx === 0 ? `<td class="time-cell" rowspan="${totalEntries}">${slot}</td>` : ''}
+						<td class="plan-cell band-cell${completedClass}" rowspan="${band.spanCount}">${escapeHtml(e.taskText)}${e.logText ? '<br><span class="band-log">' + escapeHtml(e.logText) + '</span>' : ''}</td>
+						${rowIdx === 0 && !isBandContinuation ? '<td class="actual-cell"></td>' : ''}
+					</tr>\n`;
+					rowIdx++;
+				}
+				// 通常のエントリ
+				for (const e of slotEntries) {
+					const completedClass = e.isCompleted ? ' completed' : '';
+					tableRows += `<tr${rowClass}>
+						${rowIdx === 0 ? `<td class="time-cell" rowspan="${totalEntries}">${slot}</td>` : ''}
 						<td class="plan-cell${completedClass}">${escapeHtml(e.taskText)}</td>
 						<td class="actual-cell">${escapeHtml(e.logText)}</td>
 					</tr>\n`;
+					rowIdx++;
 				}
 			}
 		}
@@ -217,6 +276,15 @@ export class SchedulePanel {
 			color: var(--vscode-descriptionForeground);
 			font-size: 0.9em;
 			margin: 16px 0 4px 0;
+		}
+		.band-cell {
+			background-color: var(--vscode-editor-selectionBackground);
+			border-left: 3px solid var(--vscode-focusBorder);
+			vertical-align: middle;
+		}
+		.band-log {
+			color: var(--vscode-descriptionForeground);
+			font-size: 0.9em;
 		}
 	</style>
 </head>
