@@ -92,7 +92,7 @@ pub struct ScheduleEntry {
 
 pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTask> {
     let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
-    let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2}):\s*(.*)").unwrap();
+    let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+\d{1,2}:\d{2}(?:-\d{1,2}:\d{2})?)?:\s*(.*)").unwrap();
 
     let mut tasks: Vec<ParsedTask> = Vec::new();
     let mut current_task: Option<CurrentTask> = None;
@@ -131,7 +131,7 @@ pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTa
 
 pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
     let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
-    let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2}):\s*(.*)").unwrap();
+    let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+\d{1,2}:\d{2}(?:-\d{1,2}:\d{2})?)?:\s*(.*)").unwrap();
 
     let mut tasks: Vec<ParsedTaskWithDate> = Vec::new();
     let mut current_task: Option<CurrentTask> = None;
@@ -1084,12 +1084,31 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_schedule_backward_compat_old_parser() {
-        // 既存パーサーは時刻をログテキストの一部として扱う
+    fn test_parse_tasks_with_time() {
+        // 時刻付きログもタスクとして認識される
         let l = lines(&["- [ ] タスク", "    - 2026-03-21 09:00: ログ"]);
         let result = parse_tasks_internal(&l, "2026-03-21");
-        // 既存パーサーはこの形式にマッチしない（時刻がある場合）
-        // date_reが `YYYY-MM-DD:` のみマッチするため
-        assert_eq!(result.len(), 0);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].text, "タスク");
+        assert_eq!(result[0].log, "ログ");
+    }
+
+    #[test]
+    fn test_parse_tasks_with_time_range() {
+        // 時間範囲付きログもタスクとして認識される
+        let l = lines(&["- [ ] 会議", "    - 2026-03-21 13:00-14:00: 定例"]);
+        let result = parse_tasks_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].text, "会議");
+        assert_eq!(result[0].log, "定例");
+    }
+
+    #[test]
+    fn test_parse_all_dates_with_time() {
+        let l = lines(&["- [ ] タスク", "    - 2026-03-21 10:00: ログ"]);
+        let result = parse_all_dates_internal(&l);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].date, "2026-03-21");
+        assert_eq!(result[0].log, "ログ");
     }
 }
