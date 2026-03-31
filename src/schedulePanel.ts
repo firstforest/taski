@@ -75,9 +75,26 @@ export class SchedulePanel {
 	private getHtmlForWebview(entries: ScheduleEntry[], todayStr: string): string {
 		const nonce = getNonce();
 
-		// 15分スロットを生成（6:00〜22:00）
+		// デフォルト表示範囲は9:00〜18:00、エントリの時刻が範囲外なら拡張
+		let minHour = 9;
+		let maxHour = 18;
+		for (const entry of entries) {
+			const times = [entry.time, entry.endTime].filter(t => t !== '');
+			for (const t of times) {
+				const [h, m] = t.split(':').map(Number);
+				if (h < minHour) {
+					minHour = h;
+				}
+				const needHour = m > 0 ? h + 1 : h;
+				if (needHour > maxHour) {
+					maxHour = needHour;
+				}
+			}
+		}
+
+		// 15分スロットを生成（minHour:00 〜 maxHour-1:45）
 		const slots: string[] = [];
-		for (let h = 6; h <= 21; h++) {
+		for (let h = minHour; h < maxHour; h++) {
 			for (let m = 0; m < 60; m += 15) {
 				slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
 			}
