@@ -157,6 +157,10 @@ export class TagTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 					continue;
 				}
 
+				if (task.isCompleted) {
+					continue;
+				}
+
 				const taskData: TagTaskData = {
 					isCompleted: task.isCompleted,
 					text: task.text,
