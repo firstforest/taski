@@ -133,6 +133,18 @@
           "default": [],
           "description": "追加でスキャンするディレクトリのパス一覧（絶対パス）"
         },
+        "taski.taskAlert": {
+          "type": "boolean",
+          "default": true,
+          "description": "タスクの開始時刻にアラート通知を表示する"
+        },
+        "taski.taskAlertLeadMinutes": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 30,
+          "description": "タスク開始の何分前にアラートを表示するか（デフォルト: 5分）"
+        },
         "taski.gitAutoSync": {
           "type": "boolean",
           "default": true,

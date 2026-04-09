@@ -5,6 +5,7 @@ import { TaskTreeProvider } from './taskTreeProvider';
 import { GitSyncManager } from './gitSync';
 import { TagTreeProvider } from './tagTreeProvider';
 import { SchedulePanel } from './schedulePanel';
+import { TaskAlertManager } from './taskAlertManager';
 
 export interface ParsedTask {
 	isCompleted: boolean;
@@ -242,6 +243,11 @@ export function activate(context: vscode.ExtensionContext) {
 		'/'
 	);
 	context.subscriptions.push(slashCommandProvider);
+
+	// タスクアラートの初期化
+	const taskAlertManager = new TaskAlertManager();
+	context.subscriptions.push(taskAlertManager);
+	taskAlertManager.start();
 
 	// Git自動同期の初期化
 	const gitSyncManager = new GitSyncManager();
