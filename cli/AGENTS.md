@@ -2,14 +2,6 @@
 
 `$HOME/taski/` 配下のMarkdownファイルからタスクを管理するCLIツール。
 
-## インストール
-
-```bash
-cargo install --path cli
-```
-
-ビルド済みバイナリは `target/release/taski` に出力される。
-
 ## データディレクトリ
 
 すべてのコマンドは `$HOME/taski/` を基準ディレクトリとして動作する。ジャーナルファイルは `$HOME/taski/journal/<year>/<month>/<YYYY-MM-DD>.md` に保存される。

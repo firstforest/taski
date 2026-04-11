@@ -49,6 +49,12 @@ enum Commands {
         /// 行番号（1始まり）
         line: usize,
     },
+    /// AGENTS.mdを生成して出力
+    AgentsMd {
+        /// 出力ファイルパス（省略時はstdoutに出力）
+        #[arg(long, short)]
+        output: Option<PathBuf>,
+    },
 }
 
 fn taski_dir() -> PathBuf {
@@ -379,6 +385,27 @@ fn toggle_task(file: &PathBuf, line_num: usize) {
     println!("切り替えました: {}", toggled.trim());
 }
 
+fn agents_md_content() -> &'static str {
+    include_str!("../AGENTS.md")
+}
+
+fn generate_agents_md(output: Option<PathBuf>) {
+    let content = agents_md_content();
+
+    match output {
+        Some(path) => {
+            fs::write(&path, content).unwrap_or_else(|e| {
+                eprintln!("エラー: ファイルに書き込めません: {e}");
+                process::exit(1);
+            });
+            println!("生成しました: {}", path.display());
+        }
+        None => {
+            print!("{content}");
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -414,6 +441,9 @@ fn main() {
         }
         Commands::Toggle { file, line } => {
             toggle_task(&file, line);
+        }
+        Commands::AgentsMd { output } => {
+            generate_agents_md(output);
         }
     }
 }
