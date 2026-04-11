@@ -34,3 +34,9 @@ pub fn build_schedule_data(files_js: JsValue, target_date: &str) -> JsValue {
     let result = parser_core::build_schedule_data_internal(files, target_date);
     serde_wasm_bindgen::to_value(&result).unwrap()
 }
+
+#[wasm_bindgen(js_name = "extractTags")]
+pub fn extract_tags(text: &str) -> JsValue {
+    let tags = parser_core::extract_tags(text);
+    serde_wasm_bindgen::to_value(&tags).unwrap()
+}

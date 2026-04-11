@@ -1,6 +1,6 @@
 use chrono::Local;
 use clap::{Parser, Subcommand};
-use parser_core::{build_tree_data_internal, FileInput};
+use parser_core::{build_tree_data_internal, extract_tags, FileInput, TreeDateGroup};
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::{self, IsTerminal, Read, Write};
@@ -31,6 +31,10 @@ enum Commands {
         /// 出力フォーマット（json, yaml）
         #[arg(long, short)]
         format: Option<String>,
+
+        /// 指定したタグを含むタスクのみ表示（例: --tag work）
+        #[arg(long, short)]
+        tag: Option<String>,
     },
     /// 今日のジャーナルファイルを開く
     Journal {
@@ -135,7 +139,35 @@ fn collect_md_files_recursive(dir: &PathBuf, files: &mut Vec<PathBuf>) {
     }
 }
 
-fn list_tasks(format: Option<String>) {
+fn filter_tree_by_tag(tree: Vec<TreeDateGroup>, tag: &str) -> Vec<TreeDateGroup> {
+    tree.into_iter()
+        .filter_map(|mut date_group| {
+            date_group.file_groups = date_group
+                .file_groups
+                .into_iter()
+                .filter_map(|mut file_group| {
+                    file_group.tasks.retain(|task| {
+                        extract_tags(&task.text)
+                            .iter()
+                            .any(|t| t == tag)
+                    });
+                    if file_group.tasks.is_empty() {
+                        None
+                    } else {
+                        Some(file_group)
+                    }
+                })
+                .collect();
+            if date_group.file_groups.is_empty() {
+                None
+            } else {
+                Some(date_group)
+            }
+        })
+        .collect()
+}
+
+fn list_tasks(format: Option<String>, tag: Option<String>) {
     let base_dir = taski_dir();
     if !base_dir.exists() {
         eprintln!("エラー: {} が見つかりません", base_dir.display());
@@ -169,8 +201,18 @@ fn list_tasks(format: Option<String>) {
     let today_str = Local::now().format("%Y-%m-%d").to_string();
     let tree = build_tree_data_internal(files, &today_str);
 
+    let tree = if let Some(ref tag) = tag {
+        filter_tree_by_tag(tree, tag)
+    } else {
+        tree
+    };
+
     if tree.is_empty() {
-        println!("未完了のタスクはありません");
+        if tag.is_some() {
+            println!("該当するタグのタスクが見つかりません");
+        } else {
+            println!("未完了のタスクはありません");
+        }
         return;
     }
 
@@ -364,8 +406,8 @@ fn main() {
 
             append_memo(&memo_text, no_timestamp);
         }
-        Commands::List { format } => {
-            list_tasks(format);
+        Commands::List { format, tag } => {
+            list_tasks(format, tag);
         }
         Commands::Journal { print } => {
             open_journal(print);
@@ -417,5 +459,94 @@ mod tests {
     #[test]
     fn test_toggle_line_empty() {
         assert_eq!(toggle_line(""), None);
+    }
+
+    #[test]
+    fn test_extract_tags_single() {
+        assert_eq!(extract_tags("タスク #work"), vec!["work"]);
+    }
+
+    #[test]
+    fn test_extract_tags_multiple() {
+        assert_eq!(extract_tags("#work #urgent タスク"), vec!["work", "urgent"]);
+    }
+
+    #[test]
+    fn test_extract_tags_none() {
+        let result: Vec<String> = vec![];
+        assert_eq!(extract_tags("タグなしタスク"), result);
+    }
+
+    #[test]
+    fn test_extract_tags_japanese() {
+        assert_eq!(extract_tags("タスク #仕事"), vec!["仕事"]);
+    }
+
+    #[test]
+    fn test_filter_tree_by_tag() {
+        use parser_core::{TreeDateGroup, TreeFileGroup, TreeTaskData};
+
+        let tree = vec![TreeDateGroup {
+            date_key: "2026-04-09".to_string(),
+            label: "今日".to_string(),
+            is_today: true,
+            completed_count: 0,
+            total_count: 2,
+            file_groups: vec![TreeFileGroup {
+                file_name: "test.md".to_string(),
+                file_uri: "/test.md".to_string(),
+                tasks: vec![
+                    TreeTaskData {
+                        is_completed: false,
+                        text: "タスクA #work".to_string(),
+                        file_uri: "/test.md".to_string(),
+                        line: 1,
+                        log: String::new(),
+                        date: "2026-04-09".to_string(),
+                    },
+                    TreeTaskData {
+                        is_completed: false,
+                        text: "タスクB #personal".to_string(),
+                        file_uri: "/test.md".to_string(),
+                        line: 2,
+                        log: String::new(),
+                        date: "2026-04-09".to_string(),
+                    },
+                ],
+            }],
+        }];
+
+        let filtered = filter_tree_by_tag(tree, "work");
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].file_groups[0].tasks.len(), 1);
+        assert_eq!(filtered[0].file_groups[0].tasks[0].text, "タスクA #work");
+    }
+
+    #[test]
+    fn test_filter_tree_by_tag_no_match() {
+        use parser_core::{TreeDateGroup, TreeFileGroup, TreeTaskData};
+
+        let tree = vec![TreeDateGroup {
+            date_key: "2026-04-09".to_string(),
+            label: "今日".to_string(),
+            is_today: true,
+            completed_count: 0,
+            total_count: 1,
+            file_groups: vec![TreeFileGroup {
+                file_name: "test.md".to_string(),
+                file_uri: "/test.md".to_string(),
+                tasks: vec![TreeTaskData {
+                    is_completed: false,
+                    text: "タスクA #work".to_string(),
+                    file_uri: "/test.md".to_string(),
+                    line: 1,
+                    log: String::new(),
+                    date: "2026-04-09".to_string(),
+                }],
+            }],
+        }];
+
+        let filtered = filter_tree_by_tag(tree, "nonexistent");
+        assert!(filtered.is_empty());
     }
 }

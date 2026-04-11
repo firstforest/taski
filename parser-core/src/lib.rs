@@ -451,6 +451,15 @@ pub fn build_schedule_data_internal(
     all_entries
 }
 
+// === Tag extraction ===
+
+pub fn extract_tags(text: &str) -> Vec<String> {
+    let re = Regex::new(r"#([^\s#]+)").unwrap();
+    re.captures_iter(text)
+        .map(|cap| cap[1].to_string())
+        .collect()
+}
+
 // === Tests ===
 
 #[cfg(test)]
