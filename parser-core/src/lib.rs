@@ -10,6 +10,7 @@ struct CurrentTask {
     completed: bool,
     text: String,
     line: usize,
+    context: Vec<String>,
 }
 
 // === Output types ===
@@ -31,6 +32,8 @@ pub struct ParsedTaskWithDate {
     pub line: usize,
     pub log: String,
     pub date: String,
+    #[serde(default)]
+    pub context: Vec<String>,
 }
 
 // === Tree types ===
@@ -52,6 +55,8 @@ pub struct TreeTaskData {
     pub line: usize,
     pub log: String,
     pub date: String,
+    #[serde(default)]
+    pub context: Vec<String>,
 }
 
 #[derive(Serialize, Clone, Debug, PartialEq)]
@@ -104,6 +109,7 @@ pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTa
                 completed: &caps[2] == "x",
                 text: caps[3].to_string(),
                 line: i,
+                context: vec![],
             });
             continue;
         }
@@ -132,12 +138,21 @@ pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTa
 pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
     let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
     let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+\d{1,2}:\d{2}(?:-\d{1,2}:\d{2})?)?:\s*(.*)").unwrap();
+    let heading_re = Regex::new(r"^(#{1,6})\s+(.*)").unwrap();
 
     let mut tasks: Vec<ParsedTaskWithDate> = Vec::new();
     let mut current_task: Option<CurrentTask> = None;
     let mut current_task_has_log = false;
+    let mut current_headings: Vec<String> = Vec::new();
 
     for (i, text) in lines.iter().enumerate() {
+        if let Some(caps) = heading_re.captures(text) {
+            let level = caps[1].len();
+            current_headings.truncate(level - 1);
+            current_headings.push(caps[2].to_string());
+            continue;
+        }
+
         if let Some(caps) = task_re.captures(text) {
             if let Some(ref ct) = current_task {
                 if !current_task_has_log {
@@ -147,6 +162,7 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
                         line: ct.line,
                         log: String::new(),
                         date: String::new(),
+                        context: ct.context.clone(),
                     });
                 }
             }
@@ -155,6 +171,7 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
                 completed: &caps[2] == "x",
                 text: caps[3].to_string(),
                 line: i,
+                context: current_headings.clone(),
             });
             current_task_has_log = false;
             continue;
@@ -173,6 +190,7 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
                         line: ct.line,
                         log: log_content.to_string(),
                         date: date_str.to_string(),
+                        context: ct.context.clone(),
                     });
                     current_task_has_log = true;
                 }
@@ -188,6 +206,7 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
                 line: ct.line,
                 log: String::new(),
                 date: String::new(),
+                context: ct.context.clone(),
             });
         }
     }
@@ -218,6 +237,7 @@ pub fn build_tree_data_internal(files: Vec<FileInput>, today_str: &str) -> Vec<T
                     line: t.line,
                     log: t.log,
                     date: t.date,
+                    context: t.context,
                 });
         }
 
@@ -371,6 +391,7 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
                 completed: &caps[2] == "x",
                 text: caps[3].to_string(),
                 line: i,
+                context: vec![],
             });
             continue;
         }
@@ -694,6 +715,45 @@ mod tests {
         assert_eq!(result[1].date, "");
         assert_eq!(result[2].text, "タスク3");
         assert_eq!(result[2].date, "2026-01-30");
+    }
+
+    // --- parse_all_dates_internal context tests ---
+
+    #[test]
+    fn test_parse_all_dates_heading_context() {
+        let l = lines(&[
+            "# プロジェクトA",
+            "## 仕事",
+            "- [ ] タスク1",
+            "    - 2026-02-01: ログ1",
+            "## 個人",
+            "- [ ] タスク2",
+        ]);
+        let result = parse_all_dates_internal(&l);
+        assert_eq!(result[0].context, vec!["プロジェクトA", "仕事"]);
+        assert_eq!(result[1].context, vec!["プロジェクトA", "個人"]);
+    }
+
+    #[test]
+    fn test_parse_all_dates_no_heading_empty_context() {
+        let l = lines(&["- [ ] タスク"]);
+        let result = parse_all_dates_internal(&l);
+        assert_eq!(result[0].context, Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_parse_all_dates_heading_level_change() {
+        let l = lines(&[
+            "# H1",
+            "## H2",
+            "### H3",
+            "- [ ] deep task",
+            "## H2b",
+            "- [ ] shallower task",
+        ]);
+        let result = parse_all_dates_internal(&l);
+        assert_eq!(result[0].context, vec!["H1", "H2", "H3"]);
+        assert_eq!(result[1].context, vec!["H1", "H2b"]);
     }
 
     // --- build_tree_data_internal tests ---

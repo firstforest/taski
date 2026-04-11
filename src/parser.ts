@@ -20,6 +20,7 @@ export interface TreeTaskData {
 	line: number;
 	log: string;
 	date: string;
+	context: string[];
 }
 
 export interface TreeFileGroup {

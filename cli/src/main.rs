@@ -261,10 +261,18 @@ fn list_tasks(format: Option<String>, tag: Option<String>) {
                 } else {
                     "\x1b[33m[ ]\x1b[0m"
                 };
-                if task.log.is_empty() {
-                    println!("    {} {}", checkbox, task.text);
+                let context_str = if task.context.is_empty() {
+                    String::new()
                 } else {
-                    println!("    {} {}  \x1b[2m{}\x1b[0m", checkbox, task.text, task.log);
+                    format!("  \x1b[2m({})\x1b[0m", task.context.join(" > "))
+                };
+                if task.log.is_empty() {
+                    println!("    {} {}{}", checkbox, task.text, context_str);
+                } else {
+                    println!(
+                        "    {} {}  \x1b[2m{}\x1b[0m{}",
+                        checkbox, task.text, task.log, context_str
+                    );
                 }
             }
         }
@@ -533,6 +541,7 @@ mod tests {
                         line: 1,
                         log: String::new(),
                         date: "2026-04-09".to_string(),
+                        context: vec![],
                     },
                     TreeTaskData {
                         is_completed: false,
@@ -541,6 +550,7 @@ mod tests {
                         line: 2,
                         log: String::new(),
                         date: "2026-04-09".to_string(),
+                        context: vec![],
                     },
                 ],
             }],
@@ -572,6 +582,7 @@ mod tests {
                     line: 1,
                     log: String::new(),
                     date: "2026-04-09".to_string(),
+                    context: vec![],
                 }],
             }],
         }];
