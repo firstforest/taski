@@ -1,6 +1,8 @@
 use chrono::Local;
 use clap::{Parser, Subcommand};
-use parser_core::{build_tree_data_internal, extract_tags, FileInput, TreeDateGroup};
+use parser_core::{
+    build_schedule_data_internal, build_tree_data_internal, extract_tags, FileInput, TreeDateGroup,
+};
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::{self, IsTerminal, Read, Write};
@@ -48,6 +50,16 @@ enum Commands {
         file: PathBuf,
         /// 行番号（1始まり）
         line: usize,
+    },
+    /// 今日のスケジュールを表示
+    Schedule {
+        /// 出力フォーマット（json, yaml）
+        #[arg(long, short)]
+        format: Option<String>,
+
+        /// 表示する日付（YYYY-MM-DD、省略時は今日）
+        #[arg(long, short)]
+        date: Option<String>,
     },
     /// AGENTS.mdを生成して出力
     AgentsMd {
@@ -279,6 +291,108 @@ fn list_tasks(format: Option<String>, tag: Option<String>) {
     }
 }
 
+fn show_schedule(format: Option<String>, date: Option<String>) {
+    let base_dir = taski_dir();
+    if !base_dir.exists() {
+        eprintln!("エラー: {} が見つかりません", base_dir.display());
+        process::exit(1);
+    }
+
+    let target_date = date.unwrap_or_else(|| Local::now().format("%Y-%m-%d").to_string());
+
+    let md_files = collect_md_files(&base_dir);
+    if md_files.is_empty() {
+        println!("スケジュールが見つかりません");
+        return;
+    }
+
+    let files: Vec<FileInput> = md_files
+        .iter()
+        .filter_map(|path| {
+            let content = fs::read_to_string(path).ok()?;
+            let lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
+            let file_name = path
+                .strip_prefix(&base_dir)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .to_string();
+            Some(FileInput {
+                file_name,
+                file_uri: path.to_string_lossy().to_string(),
+                lines,
+            })
+        })
+        .collect();
+
+    let entries = build_schedule_data_internal(files, &target_date);
+
+    if entries.is_empty() {
+        println!("{target_date} のスケジュールはありません");
+        return;
+    }
+
+    if let Some(fmt) = format {
+        match fmt.as_str() {
+            "json" => {
+                let json = serde_json::to_string_pretty(&entries).unwrap_or_else(|e| {
+                    eprintln!("エラー: JSON変換に失敗しました: {e}");
+                    process::exit(1);
+                });
+                println!("{json}");
+            }
+            "yaml" => {
+                let yaml = serde_yaml::to_string(&entries).unwrap_or_else(|e| {
+                    eprintln!("エラー: YAML変換に失敗しました: {e}");
+                    process::exit(1);
+                });
+                print!("{yaml}");
+            }
+            _ => {
+                eprintln!("エラー: 未対応のフォーマットです: {fmt}");
+                process::exit(1);
+            }
+        }
+        return;
+    }
+
+    println!("\x1b[1m📅 {target_date}\x1b[0m");
+    println!();
+
+    for entry in &entries {
+        let time_display = if !entry.time.is_empty() {
+            if !entry.end_time.is_empty() {
+                format!("{}-{}", entry.time, entry.end_time)
+            } else {
+                entry.time.clone()
+            }
+        } else {
+            "--:--".to_string()
+        };
+
+        let checkbox = if entry.is_completed {
+            "\x1b[32m[x]\x1b[0m"
+        } else {
+            "\x1b[33m[ ]\x1b[0m"
+        };
+
+        if entry.task_text.is_empty() {
+            // ジャーナルメモ（タスクなし）
+            println!(
+                "  \x1b[36m{:<11}\x1b[0m {}",
+                time_display, entry.log_text
+            );
+        } else {
+            println!(
+                "  \x1b[36m{:<11}\x1b[0m {} {}",
+                time_display, checkbox, entry.task_text
+            );
+            if !entry.log_text.is_empty() {
+                println!("               \x1b[2m{}\x1b[0m", entry.log_text);
+            }
+        }
+    }
+}
+
 fn open_journal(print_only: bool) {
     let file_path = ensure_journal_file();
 
@@ -449,6 +563,9 @@ fn main() {
         }
         Commands::Toggle { file, line } => {
             toggle_task(&file, line);
+        }
+        Commands::Schedule { format, date } => {
+            show_schedule(format, date);
         }
         Commands::AgentsMd { output } => {
             generate_agents_md(output);

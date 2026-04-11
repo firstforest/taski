@@ -102,6 +102,56 @@ taski list --tag work --format json
 ]
 ```
 
+### `taski schedule`
+
+今日（または指定日）のスケジュールを時間割形式で表示する。タスクのログ行に含まれる時刻情報と、ジャーナルファイルの時刻メモを集約して時系列順に表示する。
+
+```bash
+# 今日のスケジュールを表示
+taski schedule
+
+# 特定の日付のスケジュールを表示
+taski schedule --date 2026-04-10
+
+# JSON形式で出力
+taski schedule --format json
+
+# YAML形式で出力
+taski schedule --format yaml
+```
+
+**オプション:**
+- `-f, --format <FORMAT>` — 出力フォーマット（`json` または `yaml`）
+- `-d, --date <DATE>` — 表示する日付（`YYYY-MM-DD` 形式、省略時は今日）
+
+**表示内容:**
+- 時刻付きタスク（`HH:MM` または `HH:MM-HH:MM`）は時刻順に表示
+- 時刻なしタスクは `--:--` として末尾に表示
+- ジャーナルメモ（タスクに紐づかない `- HH:MM: テキスト` 行）も表示
+- 完了状態（`[x]`/`[ ]`）を色分け表示
+
+**JSON出力の構造:**
+
+```json
+[
+  {
+    "taskText": "API設計レビュー",
+    "taskLine": 3,
+    "isCompleted": false,
+    "logText": "エンドポイント設計の確認",
+    "logLine": 4,
+    "time": "10:00",
+    "endTime": "11:00",
+    "fileUri": "/Users/user/taski/journal/2026/04/2026-04-11.md"
+  }
+]
+```
+
+- `taskText` — タスク名（ジャーナルメモの場合は空文字列）
+- `time` — 開始時刻（時刻なしの場合は空文字列）
+- `endTime` — 終了時刻（範囲指定なしの場合は空文字列）
+- `logText` — ログ内容またはメモのテキスト
+
 ### `taski journal`
 
 今日のジャーナルファイルを `$EDITOR` で開く。ファイルが存在しない場合は自動作成する。
@@ -143,6 +193,9 @@ taski toggle ~/taski/tasks.md 3
 ## 典型的なワークフロー
 
 ```bash
+# 今日のスケジュールを確認
+taski schedule
+
 # 今日のタスクを確認
 taski list
 
@@ -157,4 +210,7 @@ taski toggle ~/taski/journal/2026/04/2026-04-11.md 5
 
 # 他のツールと連携（JSON出力をjqで加工）
 taski list --format json | jq '.[].fileGroups[].tasks[] | select(.isCompleted == false) | .text'
+
+# スケジュールの空き時間を確認
+taski schedule --format json | jq '[.[] | select(.time != "")] | sort_by(.time)'
 ```
