@@ -54,7 +54,6 @@ tags:
 
 - **VS Code 拡張 `taskiTagView`**: 自動タグのみを持つタスクも集計対象になる
 - **CLI `taski list --tag <tag>`**: 自動タグも含めてフィルタする
-- **CLI `taski schedule --tag <tag>`**: 同上
 - **完了済みタスクの扱い**: 現状の `tagTreeProvider` の挙動（完了済みは除外）を維持する
 
 ### 既存機能との互換性
@@ -101,8 +100,8 @@ pub fn extract_file_tags_wasm(lines: Vec<JsValue>) -> Vec<JsValue>
 ### CLI 側
 
 - `cli` crate は `parser-core::extract_file_tags` を直接呼ぶ
-- `taski list --tag` / `taski schedule --tag` のフィルタロジックで、タスクテキストからのタグ抽出に加えてファイル自動タグを合算
-- 既存のフィルタ関数に `file_tags` を渡すように変更
+- `taski list --tag` のフィルタロジックで、タスクテキストからのタグ抽出に加えてファイル自動タグを合算
+- 既存の `filter_tree_by_tag` 関数に `file_tags_by_uri: &HashMap<String, Vec<String>>` を渡すように変更
 
 ## テスト
 
