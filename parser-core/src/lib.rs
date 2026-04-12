@@ -524,6 +524,19 @@ pub fn extract_tags(text: &str) -> Vec<String> {
         .collect()
 }
 
+pub fn extract_file_tags(lines: &[String]) -> Vec<String> {
+    let Some(fm) = parse_front_matter(lines) else {
+        return Vec::new();
+    };
+    let Some(tags) = fm.tags else {
+        return Vec::new();
+    };
+    tags.into_iter()
+        .map(|t| t.trim_start_matches('#').trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect()
+}
+
 // === Tests ===
 
 #[cfg(test)]
@@ -1264,5 +1277,68 @@ mod tests {
     fn test_parse_front_matter_invalid_yaml() {
         let l = lines(&["---", "tags: [unclosed", "---"]);
         assert!(parse_front_matter(&l).is_none());
+    }
+
+    // --- extract_file_tags tests ---
+
+    #[test]
+    fn test_extract_file_tags_basic() {
+        let l = lines(&[
+            "---",
+            "tags:",
+            "  - projectA",
+            "  - work",
+            "---",
+            "- [ ] タスク",
+        ]);
+        assert_eq!(extract_file_tags(&l), vec![s("projectA"), s("work")]);
+    }
+
+    #[test]
+    fn test_extract_file_tags_none() {
+        let l = lines(&["- [ ] タスク"]);
+        let empty: Vec<String> = vec![];
+        assert_eq!(extract_file_tags(&l), empty);
+    }
+
+    #[test]
+    fn test_extract_file_tags_strips_hash_prefix() {
+        let l = lines(&["---", "tags:", "  - \"#projectA\"", "  - work", "---"]);
+        assert_eq!(extract_file_tags(&l), vec![s("projectA"), s("work")]);
+    }
+
+    #[test]
+    fn test_extract_file_tags_skips_blank_entries() {
+        let l = lines(&[
+            "---",
+            "tags:",
+            "  - projectA",
+            "  - \"\"",
+            "  - \"   \"",
+            "  - work",
+            "---",
+        ]);
+        assert_eq!(extract_file_tags(&l), vec![s("projectA"), s("work")]);
+    }
+
+    #[test]
+    fn test_extract_file_tags_scalar_tags_field() {
+        // tags が配列でなく文字列の場合は空を返す
+        let l = lines(&["---", "tags: projectA", "---"]);
+        let empty: Vec<String> = vec![];
+        assert_eq!(extract_file_tags(&l), empty);
+    }
+
+    #[test]
+    fn test_extract_file_tags_mid_file_delimiter_ignored() {
+        let l = lines(&[
+            "- [ ] タスク",
+            "---",
+            "tags:",
+            "  - work",
+            "---",
+        ]);
+        let empty: Vec<String> = vec![];
+        assert_eq!(extract_file_tags(&l), empty);
     }
 }
