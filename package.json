@@ -36,37 +36,37 @@
     "commands": [
       {
         "command": "taski.showToday",
-        "title": "Show Today's Tasks"
+        "title": "Taski: Show Today's Tasks"
       },
       {
         "command": "taski.refreshTasks",
-        "title": "Refresh Tasks",
+        "title": "Taski: Refresh Tasks",
         "icon": "$(refresh)"
       },
       {
         "command": "taski.addTodayLog",
-        "title": "Add Today's Log Entry"
+        "title": "Taski: Add Today's Log Entry"
       },
       {
         "command": "taski.addTomorrowLog",
-        "title": "Add Tomorrow's Log Entry"
+        "title": "Taski: Add Tomorrow's Log Entry"
       },
       {
         "command": "taski.toggleTask",
-        "title": "Toggle Task Completion"
+        "title": "Taski: Toggle Task Completion"
       },
       {
         "command": "taski.openTodayJournal",
-        "title": "Open Today's Journal"
+        "title": "Taski: Open Today's Journal"
       },
       {
         "command": "taski.syncNow",
-        "title": "Sync Now (Git)",
+        "title": "Taski: Sync Now (Git)",
         "icon": "$(cloud-upload)"
       },
       {
         "command": "taski.showSchedule",
-        "title": "Show Schedule Grid",
+        "title": "Taski: Show Schedule Grid",
         "icon": "$(calendar)"
       }
     ],
