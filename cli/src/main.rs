@@ -1,7 +1,8 @@
 use chrono::Local;
 use clap::{Parser, Subcommand};
 use parser_core::{
-    build_schedule_data_internal, build_tree_data_internal, extract_tags, FileInput, TreeDateGroup,
+    build_schedule_data_internal, build_tree_data_internal, extract_file_tags, extract_tags,
+    FileInput, TreeDateGroup,
 };
 use std::fs;
 use std::fs::OpenOptions;
@@ -157,17 +158,24 @@ fn collect_md_files_recursive(dir: &PathBuf, files: &mut Vec<PathBuf>) {
     }
 }
 
-fn filter_tree_by_tag(tree: Vec<TreeDateGroup>, tag: &str) -> Vec<TreeDateGroup> {
+fn filter_tree_by_tag(
+    tree: Vec<TreeDateGroup>,
+    tag: &str,
+    file_tags_by_uri: &std::collections::HashMap<String, Vec<String>>,
+) -> Vec<TreeDateGroup> {
     tree.into_iter()
         .filter_map(|mut date_group| {
             date_group.file_groups = date_group
                 .file_groups
                 .into_iter()
                 .filter_map(|mut file_group| {
+                    let empty: Vec<String> = Vec::new();
+                    let file_tags = file_tags_by_uri
+                        .get(&file_group.file_uri)
+                        .unwrap_or(&empty);
                     file_group.tasks.retain(|task| {
-                        extract_tags(&task.text)
-                            .iter()
-                            .any(|t| t == tag)
+                        file_tags.iter().any(|t| t == tag)
+                            || extract_tags(&task.text).iter().any(|t| t == tag)
                     });
                     if file_group.tasks.is_empty() {
                         None
@@ -216,11 +224,16 @@ fn list_tasks(format: Option<String>, tag: Option<String>) {
         })
         .collect();
 
+    let file_tags_by_uri: std::collections::HashMap<String, Vec<String>> = files
+        .iter()
+        .map(|f| (f.file_uri.clone(), extract_file_tags(&f.lines)))
+        .collect();
+
     let today_str = Local::now().format("%Y-%m-%d").to_string();
     let tree = build_tree_data_internal(files, &today_str);
 
     let tree = if let Some(ref tag) = tag {
-        filter_tree_by_tag(tree, tag)
+        filter_tree_by_tag(tree, tag, &file_tags_by_uri)
     } else {
         tree
     };
@@ -673,7 +686,7 @@ mod tests {
             }],
         }];
 
-        let filtered = filter_tree_by_tag(tree, "work");
+        let filtered = filter_tree_by_tag(tree, "work", &std::collections::HashMap::new());
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].file_groups[0].tasks.len(), 1);
         assert_eq!(filtered[0].file_groups[0].tasks[0].text, "タスクA #work");
@@ -704,7 +717,41 @@ mod tests {
             }],
         }];
 
-        let filtered = filter_tree_by_tag(tree, "nonexistent");
+        let filtered = filter_tree_by_tag(tree, "nonexistent", &std::collections::HashMap::new());
         assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn test_filter_tree_by_tag_with_file_tags() {
+        use parser_core::{TreeDateGroup, TreeFileGroup, TreeTaskData};
+        use std::collections::HashMap;
+
+        let tree = vec![TreeDateGroup {
+            date_key: "2026-04-12".to_string(),
+            label: "今日".to_string(),
+            is_today: true,
+            completed_count: 0,
+            total_count: 1,
+            file_groups: vec![TreeFileGroup {
+                file_name: "projectA.md".to_string(),
+                file_uri: "/projectA.md".to_string(),
+                tasks: vec![TreeTaskData {
+                    is_completed: false,
+                    text: "本文にタグなしタスク".to_string(),
+                    file_uri: "/projectA.md".to_string(),
+                    line: 3,
+                    log: String::new(),
+                    date: "2026-04-12".to_string(),
+                    context: vec![],
+                }],
+            }],
+        }];
+
+        let mut file_tags = HashMap::new();
+        file_tags.insert("/projectA.md".to_string(), vec!["projectA".to_string()]);
+
+        let filtered = filter_tree_by_tag(tree, "projectA", &file_tags);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].file_groups[0].tasks.len(), 1);
     }
 }

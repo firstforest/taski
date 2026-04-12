@@ -1,1 +1,1 @@
-export { extractTags } from './parser';
+export { extractTags, extractFileTags } from './parser';

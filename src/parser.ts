@@ -4,6 +4,7 @@ import {
 	buildTreeData as wasmBuildTreeData,
 	buildScheduleData as wasmBuildScheduleData,
 	extractTags as wasmExtractTags,
+	extractFileTags as wasmExtractFileTags,
 } from './pkg/parser_wasm';
 import type { ParsedTask, ParsedTaskWithDate } from './extension';
 
@@ -67,4 +68,8 @@ export function buildScheduleData(files: FileInput[], targetDate: string): Sched
 
 export function extractTags(text: string): string[] {
 	return wasmExtractTags(text) as string[];
+}
+
+export function extractFileTags(lines: string[]): string[] {
+	return wasmExtractFileTags(lines) as string[];
 }

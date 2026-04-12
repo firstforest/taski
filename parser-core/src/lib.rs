@@ -472,12 +472,68 @@ pub fn build_schedule_data_internal(
     all_entries
 }
 
+// === Front matter ===
+
+#[derive(serde::Deserialize, Debug, Default)]
+pub struct FrontMatter {
+    #[serde(default)]
+    pub tags: Option<Vec<serde_yml::Value>>,
+}
+
+pub fn parse_front_matter(lines: &[String]) -> Option<FrontMatterParsed> {
+    if lines.is_empty() || lines[0].trim_end() != "---" {
+        return None;
+    }
+    let mut end: Option<usize> = None;
+    for (i, line) in lines.iter().enumerate().skip(1) {
+        if line.trim_end() == "---" {
+            end = Some(i);
+            break;
+        }
+    }
+    let end = end?;
+    let body = lines[1..end].join("\n");
+    if body.trim().is_empty() {
+        return Some(FrontMatterParsed { tags: None });
+    }
+    let fm: FrontMatter = serde_yml::from_str(&body).ok()?;
+    let tags = fm.tags.map(|vs| {
+        vs.into_iter()
+            .filter_map(|v| match v {
+                serde_yml::Value::String(s) => Some(s),
+                serde_yml::Value::Number(n) => Some(n.to_string()),
+                serde_yml::Value::Bool(b) => Some(b.to_string()),
+                _ => None,
+            })
+            .collect::<Vec<String>>()
+    });
+    Some(FrontMatterParsed { tags })
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FrontMatterParsed {
+    pub tags: Option<Vec<String>>,
+}
+
 // === Tag extraction ===
 
 pub fn extract_tags(text: &str) -> Vec<String> {
     let re = Regex::new(r"#([^\s#]+)").unwrap();
     re.captures_iter(text)
         .map(|cap| cap[1].to_string())
+        .collect()
+}
+
+pub fn extract_file_tags(lines: &[String]) -> Vec<String> {
+    let Some(fm) = parse_front_matter(lines) else {
+        return Vec::new();
+    };
+    let Some(tags) = fm.tags else {
+        return Vec::new();
+    };
+    tags.into_iter()
+        .map(|t| t.trim_start_matches('#').trim().to_string())
+        .filter(|t| !t.is_empty())
         .collect()
 }
 
@@ -1179,5 +1235,110 @@ mod tests {
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].date, "2026-03-21");
         assert_eq!(result[0].log, "ログ");
+    }
+
+    // --- parse_front_matter tests ---
+
+    #[test]
+    fn test_parse_front_matter_basic() {
+        let l = lines(&[
+            "---",
+            "tags:",
+            "  - projectA",
+            "  - work",
+            "---",
+            "",
+            "- [ ] タスク",
+        ]);
+        let fm = parse_front_matter(&l).expect("front matter should parse");
+        assert_eq!(fm.tags, Some(vec![s("projectA"), s("work")]));
+    }
+
+    #[test]
+    fn test_parse_front_matter_none_when_no_leading_delimiter() {
+        let l = lines(&["", "---", "tags:", "  - work", "---"]);
+        assert!(parse_front_matter(&l).is_none());
+    }
+
+    #[test]
+    fn test_parse_front_matter_none_when_unclosed() {
+        let l = lines(&["---", "tags:", "  - work", "- [ ] タスク"]);
+        assert!(parse_front_matter(&l).is_none());
+    }
+
+    #[test]
+    fn test_parse_front_matter_empty_body() {
+        let l = lines(&["---", "---"]);
+        let fm = parse_front_matter(&l).expect("empty front matter is valid");
+        assert!(fm.tags.is_none());
+    }
+
+    #[test]
+    fn test_parse_front_matter_invalid_yaml() {
+        let l = lines(&["---", "tags: [unclosed", "---"]);
+        assert!(parse_front_matter(&l).is_none());
+    }
+
+    // --- extract_file_tags tests ---
+
+    #[test]
+    fn test_extract_file_tags_basic() {
+        let l = lines(&[
+            "---",
+            "tags:",
+            "  - projectA",
+            "  - work",
+            "---",
+            "- [ ] タスク",
+        ]);
+        assert_eq!(extract_file_tags(&l), vec![s("projectA"), s("work")]);
+    }
+
+    #[test]
+    fn test_extract_file_tags_none() {
+        let l = lines(&["- [ ] タスク"]);
+        let empty: Vec<String> = vec![];
+        assert_eq!(extract_file_tags(&l), empty);
+    }
+
+    #[test]
+    fn test_extract_file_tags_strips_hash_prefix() {
+        let l = lines(&["---", "tags:", "  - \"#projectA\"", "  - work", "---"]);
+        assert_eq!(extract_file_tags(&l), vec![s("projectA"), s("work")]);
+    }
+
+    #[test]
+    fn test_extract_file_tags_skips_blank_entries() {
+        let l = lines(&[
+            "---",
+            "tags:",
+            "  - projectA",
+            "  - \"\"",
+            "  - \"   \"",
+            "  - work",
+            "---",
+        ]);
+        assert_eq!(extract_file_tags(&l), vec![s("projectA"), s("work")]);
+    }
+
+    #[test]
+    fn test_extract_file_tags_scalar_tags_field() {
+        // tags が配列でなく文字列の場合は空を返す
+        let l = lines(&["---", "tags: projectA", "---"]);
+        let empty: Vec<String> = vec![];
+        assert_eq!(extract_file_tags(&l), empty);
+    }
+
+    #[test]
+    fn test_extract_file_tags_mid_file_delimiter_ignored() {
+        let l = lines(&[
+            "- [ ] タスク",
+            "---",
+            "tags:",
+            "  - work",
+            "---",
+        ]);
+        let empty: Vec<String> = vec![];
+        assert_eq!(extract_file_tags(&l), empty);
     }
 }

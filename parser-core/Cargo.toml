@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 regex = "1"
+serde_yml = "0.0.12"

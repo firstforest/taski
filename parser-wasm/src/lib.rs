@@ -40,3 +40,10 @@ pub fn extract_tags(text: &str) -> JsValue {
     let tags = parser_core::extract_tags(text);
     serde_wasm_bindgen::to_value(&tags).unwrap()
 }
+
+#[wasm_bindgen(js_name = "extractFileTags")]
+pub fn extract_file_tags(lines_js: JsValue) -> JsValue {
+    let lines: Vec<String> = serde_wasm_bindgen::from_value(lines_js).unwrap_or_default();
+    let tags = parser_core::extract_file_tags(&lines);
+    serde_wasm_bindgen::to_value(&tags).unwrap()
+}
