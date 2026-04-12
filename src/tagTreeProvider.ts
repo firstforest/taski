@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import { parseTasksAllDates, ParsedTaskWithDate } from './extension';
 import { findAllMarkdownUris } from './fileScanner';
-import { extractTags } from './tagUtils';
+import { extractTags, extractFileTags } from './tagUtils';
 
 type TagNodeType = 'tag' | 'file' | 'task';
 
@@ -138,6 +138,7 @@ export class TagTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 				lines.push(doc.lineAt(i).text);
 			}
 			const tasksInFile = parseTasksAllDates(lines);
+			const fileTags = extractFileTags(lines);
 
 			const relativePath = vscode.workspace.asRelativePath(fileUri);
 			const fileName = path.basename(relativePath);
@@ -152,8 +153,9 @@ export class TagTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 			}
 
 			for (const task of seenTasks.values()) {
-				const tags = extractTags(task.text);
-				if (tags.length === 0) {
+				const textTags = extractTags(task.text);
+				const mergedTags = [...fileTags, ...textTags.filter(t => !fileTags.includes(t))];
+				if (mergedTags.length === 0) {
 					continue;
 				}
 
@@ -168,7 +170,7 @@ export class TagTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 					line: task.line
 				};
 
-				for (const tag of tags) {
+				for (const tag of mergedTags) {
 					let groups = this.tagMap.get(tag);
 					if (!groups) {
 						groups = [];
