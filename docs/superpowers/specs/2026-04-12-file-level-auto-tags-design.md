@@ -73,10 +73,10 @@ pub fn extract_file_tags(lines: &[String]) -> Vec<String>
 ```
 
 - ファイル全行を受け取り、front matter から自動タグを返す
-- YAML パーサーとして `serde_yaml` か `yaml-rust` を追加依存に入れる
-  - `parser-core` は WASM ターゲットでもビルドされるため、`no_std` 不要 / `wasm32` 対応を確認
-  - 軽量さを優先し `yaml-rust` を第一候補とする（選定は実装時に再確認）
-- 内部的に `parse_front_matter(lines) -> Option<FrontMatter>` を切り出し、将来のキー追加に備える
+- YAML パーサーは `serde_yml` を使う（`serde_yaml` の維持されている後継）
+  - `parser-core` は WASM ターゲットでもビルドされるため、`wasm32-unknown-unknown` でビルドできることを実装時に確認する
+  - 将来 front matter のキーが増えたときに構造体定義を足すだけで済む利点を優先
+- 内部的に `parse_front_matter(lines) -> Option<FrontMatter>` を切り出し、`FrontMatter` 構造体に `serde::Deserialize` を derive する
 
 ### `parser-wasm` crate
 
