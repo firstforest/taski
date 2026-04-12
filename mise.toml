@@ -35,11 +35,12 @@ run = "npm run check-types && npm run lint"
 
 [tasks.download]
 run = [
-    "echo Downloading files...",
-    "gh release download --repo firstforest/daily-task-logger --pattern *.vsix",
+    "rm -f *.vsix",
+    "gh release download --pattern '*.vsix'",
 ]
 
 [tasks.install]
+depends = ["download"]
 run = "node scripts/install-vsix.js"
 
 [tasks.release]
