@@ -65,6 +65,23 @@ The extension has no runtime dependencies beyond the VS Code API. The `vscode` m
 
 Log lines must be indented deeper than their parent task line. Tasks are displayed grouped by date (today first, then newest to oldest). Tasks without any log entries appear under a "日付なし" section.
 
+### ファイル単位の自動タグ
+
+ファイル先頭に YAML front matter で `tags` を記述すると、そのファイル内の全タスクにタグが自動付与される（本文の `#tag` と合算）:
+
+```markdown
+---
+tags:
+  - projectA
+  - work
+---
+
+- [ ] レビュー #urgent
+    - 2026-04-12: 確認中
+```
+
+上記の場合、タスクは `#projectA` `#work` `#urgent` の 3 タグを持つ扱いになる。
+
 ## Configuration Settings
 
 - **`taski.includeWorkspace`** — whether to scan the current workspace for markdown files (default: `false`)
