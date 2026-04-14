@@ -187,6 +187,44 @@ taski toggle ~/taski/tasks.md 3
 
 `list --format json` の出力に含まれる `fileUri` と `line` をそのまま使える。
 
+### `taski resolve <name>`
+
+`[[name]]` に対応するファイルパスを解決して出力する。`$HOME/taski` → workspace → 追加ディレクトリ → 開いているドキュメントの優先順位で既存の `<name>.md` を探す。見つからない場合は新規作成して出力する。
+
+```bash
+# wiki リンク先を解決（なければ作成）
+taski resolve foo
+# => /Users/user/taski/note/foo.md
+
+# 日付形式はジャーナルとして扱う
+taski resolve 2026-04-14
+# => /Users/user/taski/journal/2026/04/2026-04-14.md
+
+# 作成しない（見つからなければ非ゼロ終了）
+taski resolve foo --no-create
+
+# JSON形式で出力
+taski resolve foo --format json
+```
+
+**オプション:**
+- `--no-create` — ファイルが見つからなくても作成せず、非ゼロで終了する
+- `-f, --format <FORMAT>` — 出力フォーマット（`json`）
+
+**JSON出力の構造:**
+
+```json
+{
+  "name": "foo",
+  "path": "/Users/user/taski/note/foo.md",
+  "created": true
+}
+```
+
+- `name` — 解決したリンク名
+- `path` — ファイルの絶対パス
+- `created` — 新規作成した場合 `true`、既存ファイルの場合 `false`
+
 ## 終了コード
 
 - `0` — 成功
