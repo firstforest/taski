@@ -9,6 +9,29 @@ pub struct WikiLinkMatch {
     pub end: usize,
 }
 
+#[derive(Serialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct NormalizedName {
+    pub name: String,
+    pub is_journal: bool,
+}
+
+pub fn normalize_wiki_name(raw: &str) -> NormalizedName {
+    let trimmed = raw.trim();
+    let without_ext = trimmed
+        .strip_suffix(".md")
+        .unwrap_or(trimmed)
+        .to_string();
+
+    let date_re = Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap();
+    let is_journal = date_re.is_match(&without_ext);
+
+    NormalizedName {
+        name: without_ext,
+        is_journal,
+    }
+}
+
 pub fn parse_wiki_links(text: &str) -> Vec<WikiLinkMatch> {
     let re = Regex::new(r"\[\[([^\[\]|]+?)\]\]").unwrap();
     re.captures_iter(text)
@@ -68,5 +91,32 @@ mod tests {
         assert_eq!(got[0].start, 2);
         assert_eq!(got[0].end, 9);
         assert_eq!(&text[got[0].start..got[0].end], "[[foo]]");
+    }
+
+    #[test]
+    fn test_normalize_plain() {
+        let got = normalize_wiki_name("foo");
+        assert_eq!(got.name, "foo");
+        assert!(!got.is_journal);
+    }
+
+    #[test]
+    fn test_normalize_strips_md_extension() {
+        let got = normalize_wiki_name("foo.md");
+        assert_eq!(got.name, "foo");
+        assert!(!got.is_journal);
+    }
+
+    #[test]
+    fn test_normalize_detects_journal_date() {
+        let got = normalize_wiki_name("2026-04-14");
+        assert_eq!(got.name, "2026-04-14");
+        assert!(got.is_journal);
+    }
+
+    #[test]
+    fn test_normalize_trims_whitespace() {
+        let got = normalize_wiki_name("  foo  ");
+        assert_eq!(got.name, "foo");
     }
 }
