@@ -4,6 +4,7 @@ pub use parser_core::{
     FileInput, ParsedTask, ParsedTaskWithDate, ScheduleEntry, TreeDateGroup, TreeFileGroup,
     TreeTaskData,
 };
+pub use parser_core::wiki_link::{NormalizedName, WikiLinkMatch};
 
 // === WASM exports ===
 
@@ -46,4 +47,40 @@ pub fn extract_file_tags(lines_js: JsValue, file_name: &str) -> JsValue {
     let lines: Vec<String> = serde_wasm_bindgen::from_value(lines_js).unwrap_or_default();
     let tags = parser_core::extract_file_tags(&lines, file_name);
     serde_wasm_bindgen::to_value(&tags).unwrap()
+}
+
+#[wasm_bindgen(js_name = "parseWikiLinks")]
+pub fn parse_wiki_links(text: &str) -> JsValue {
+    let links = parser_core::wiki_link::parse_wiki_links(text);
+    serde_wasm_bindgen::to_value(&links).unwrap()
+}
+
+#[wasm_bindgen(js_name = "normalizeWikiName")]
+pub fn normalize_wiki_name(raw: &str) -> JsValue {
+    let normalized = parser_core::wiki_link::normalize_wiki_name(raw);
+    serde_wasm_bindgen::to_value(&normalized).unwrap()
+}
+
+#[wasm_bindgen(js_name = "resolveWikiLink")]
+pub fn resolve_wiki_link(name: &str, candidate_paths: Vec<String>) -> Option<String> {
+    let candidates: Vec<std::path::PathBuf> =
+        candidate_paths.into_iter().map(std::path::PathBuf::from).collect();
+    parser_core::wiki_link::resolve_wiki_link(name, &candidates)
+        .map(|p| p.to_string_lossy().to_string())
+}
+
+#[wasm_bindgen(js_name = "wikiLinkCreatePath")]
+pub fn wiki_link_create_path(name: &str, is_journal: bool, taski_home: &str) -> String {
+    parser_core::wiki_link::wiki_link_create_path(
+        name,
+        is_journal,
+        std::path::Path::new(taski_home),
+    )
+    .to_string_lossy()
+    .to_string()
+}
+
+#[wasm_bindgen(js_name = "wikiLinkInitialContent")]
+pub fn wiki_link_initial_content(name: &str) -> String {
+    parser_core::wiki_link::wiki_link_initial_content(name)
 }

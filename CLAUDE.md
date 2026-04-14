@@ -36,7 +36,7 @@ Tests require compilation to `out/` first. The `pretest` script handles this: bu
 
 ## Architecture
 
-Extension with eight user-facing commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTomorrowLog`, `toggleTask`, `openTodayJournal`, `syncNow`, `showSchedule`) plus one internal command (`openTaskLocation`). Two TreeViews: `taskiView` (date-grouped tasks) and `taskiTagView` (tag-grouped tasks).
+Extension with eight user-facing commands (`showToday`, `refreshTasks`, `addTodayLog`, `addTomorrowLog`, `toggleTask`, `openTodayJournal`, `syncNow`, `showSchedule`) plus two internal commands (`openTaskLocation`, `openWikiLink`). Two TreeViews: `taskiView` (date-grouped tasks) and `taskiTagView` (tag-grouped tasks).
 
 ### Parsing pipeline
 
@@ -80,6 +80,10 @@ project: true
 
 ファイル名が `projectA.md` の場合、タスクは `#projectA` `#urgent` の 2 タグを持つ扱いになる。`project: true` が無い、または `false` の場合は本文の `#tag` だけが使われる。
 
+### Wiki リンクナビゲーション
+
+Markdown 内の `[[foo]]` を Cmd+Click すると、優先順位（`$HOME/taski` > workspace > 追加ディレクトリ > 開いているドキュメント）で既存 `foo.md` を探して開く。見つからなければ `$HOME/taski/note/foo.md` を `# foo\n` で作成して開く。`[[2026-04-14]]` のような `YYYY-MM-DD` 形式はジャーナル `$HOME/taski/journal/<YYYY>/<MM>/<YYYY-MM-DD>.md` として扱う。
+
 ## Configuration Settings
 
 - **`taski.includeWorkspace`** — whether to scan the current workspace for markdown files (default: `false`)
@@ -120,6 +124,7 @@ Rust CLI (`taski-cli` crate) for accessing taski functionality from the terminal
 - `taski toggle <file> <line>` — toggle task completion at a specific file and line number (1-based).
 - `taski schedule` — show today's schedule. `--format json|yaml`, `--date YYYY-MM-DD` for a specific date.
 - `taski agents-md` — output bundled AGENTS.md content. `--output <path>` to write to file.
+- `taski resolve <name>` — `[[name]]` の対応ファイルパスを出力。無ければ `$HOME/taski/note/<name>.md`（日付なら `$HOME/taski/journal/<YYYY>/<MM>/<name>.md`）を作成して出力。`--no-create` で作成抑止、`--format json` で構造化出力。
 
 **Build**: `mise run build-cli` → binary at `target/release/taski`
 **Install**: `cargo install --path cli`

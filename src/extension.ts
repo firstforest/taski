@@ -6,6 +6,7 @@ import { GitSyncManager } from './gitSync';
 import { TagTreeProvider } from './tagTreeProvider';
 import { SchedulePanel } from './schedulePanel';
 import { TaskAlertManager } from './taskAlertManager';
+import { WikiLinkDocumentLinkProvider, openWikiLink } from './wikiLinkProviders';
 
 export interface ParsedTask {
 	isCompleted: boolean;
@@ -272,6 +273,22 @@ export function activate(context: vscode.ExtensionContext) {
 		gitSyncManager.syncNow();
 	});
 	context.subscriptions.push(openGitSyncOutputDisposable);
+
+	// Wiki リンクプロバイダの登録
+	const wikiLinkProviderDisposable = vscode.languages.registerDocumentLinkProvider(
+		{ scheme: 'file', language: 'markdown' },
+		new WikiLinkDocumentLinkProvider()
+	);
+	context.subscriptions.push(wikiLinkProviderDisposable);
+
+	// Wiki リンクを開く内部コマンド
+	const openWikiLinkDisposable = vscode.commands.registerCommand(
+		'taski.openWikiLink',
+		async (args: { name: string; fromUri: string }) => {
+			await openWikiLink(args);
+		}
+	);
+	context.subscriptions.push(openWikiLinkDisposable);
 }
 
 // ローカルタイムゾーンで YYYY-MM-DD を取得する関数

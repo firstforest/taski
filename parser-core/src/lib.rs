@@ -1,3 +1,5 @@
+pub mod wiki_link;
+
 use std::collections::HashMap;
 
 use regex::Regex;

@@ -68,6 +68,19 @@ enum Commands {
         #[arg(long, short)]
         output: Option<PathBuf>,
     },
+    /// [[...]] リンクの対応ファイルパスを解決。無ければ作成して出力
+    Resolve {
+        /// リンク名（[[...]] の中身と同等）
+        name: String,
+
+        /// 見つからなくても作成しない（exit 1）
+        #[arg(long)]
+        no_create: bool,
+
+        /// 出力フォーマット（json）
+        #[arg(long, short)]
+        format: Option<String>,
+    },
 }
 
 fn taski_dir() -> PathBuf {
@@ -547,6 +560,66 @@ fn generate_agents_md(output: Option<PathBuf>) {
     }
 }
 
+fn resolve_wiki(raw: &str, no_create: bool, format: Option<String>) {
+    use parser_core::wiki_link::{
+        normalize_wiki_name, resolve_wiki_link, wiki_link_create_path, wiki_link_initial_content,
+    };
+
+    let normalized = normalize_wiki_name(raw);
+    let base_dir = taski_dir();
+    let md_files = if base_dir.exists() {
+        collect_md_files(&base_dir)
+    } else {
+        Vec::new()
+    };
+
+    let existing = resolve_wiki_link(&normalized.name, &md_files);
+
+    let (path, created) = match existing {
+        Some(p) => (p, false),
+        None => {
+            if no_create {
+                eprintln!("エラー: {} に対応するファイルが見つかりません", raw);
+                process::exit(1);
+            }
+            let target = wiki_link_create_path(&normalized.name, normalized.is_journal, &base_dir);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).unwrap_or_else(|e| {
+                    eprintln!("エラー: ディレクトリを作成できません: {e}");
+                    process::exit(1);
+                });
+            }
+            if !target.exists() {
+                let content = wiki_link_initial_content(&normalized.name);
+                fs::write(&target, content).unwrap_or_else(|e| {
+                    eprintln!("エラー: ファイルを作成できません: {e}");
+                    process::exit(1);
+                });
+            }
+            (target, true)
+        }
+    };
+
+    match format.as_deref() {
+        Some("json") => {
+            let payload = serde_json::json!({
+                "path": path.to_string_lossy(),
+                "created": created,
+                "is_journal": normalized.is_journal,
+            });
+            let json = serde_json::to_string_pretty(&payload).unwrap();
+            println!("{json}");
+        }
+        Some(other) => {
+            eprintln!("エラー: 未対応のフォーマットです: {other}");
+            process::exit(1);
+        }
+        None => {
+            println!("{}", path.display());
+        }
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -588,6 +661,9 @@ fn main() {
         }
         Commands::AgentsMd { output } => {
             generate_agents_md(output);
+        }
+        Commands::Resolve { name, no_create, format } => {
+            resolve_wiki(&name, no_create, format);
         }
     }
 }

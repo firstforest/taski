@@ -5,6 +5,11 @@ import {
 	buildScheduleData as wasmBuildScheduleData,
 	extractTags as wasmExtractTags,
 	extractFileTags as wasmExtractFileTags,
+	parseWikiLinks as wasmParseWikiLinks,
+	normalizeWikiName as wasmNormalizeWikiName,
+	resolveWikiLink as wasmResolveWikiLink,
+	wikiLinkCreatePath as wasmWikiLinkCreatePath,
+	wikiLinkInitialContent as wasmWikiLinkInitialContent,
 } from './pkg/parser_wasm';
 import type { ParsedTask, ParsedTaskWithDate } from './extension';
 
@@ -72,4 +77,36 @@ export function extractTags(text: string): string[] {
 
 export function extractFileTags(lines: string[], fileName: string): string[] {
 	return wasmExtractFileTags(lines, fileName) as string[];
+}
+
+export interface WikiLinkMatch {
+	name: string;
+	start: number;
+	end: number;
+}
+
+export interface NormalizedWikiName {
+	name: string;
+	isJournal: boolean;
+}
+
+export function parseWikiLinks(text: string): WikiLinkMatch[] {
+	return wasmParseWikiLinks(text) as WikiLinkMatch[];
+}
+
+export function normalizeWikiName(raw: string): NormalizedWikiName {
+	return wasmNormalizeWikiName(raw) as NormalizedWikiName;
+}
+
+export function resolveWikiLink(name: string, candidatePaths: string[]): string | undefined {
+	const got = wasmResolveWikiLink(name, candidatePaths) as string | undefined;
+	return got ?? undefined;
+}
+
+export function wikiLinkCreatePath(name: string, isJournal: boolean, taskiHome: string): string {
+	return wasmWikiLinkCreatePath(name, isJournal, taskiHome);
+}
+
+export function wikiLinkInitialContent(name: string): string {
+	return wasmWikiLinkInitialContent(name);
 }
