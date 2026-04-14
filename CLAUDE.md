@@ -67,18 +67,18 @@ Log lines must be indented deeper than their parent task line. Tasks are display
 
 ### ファイル単位の自動タグ
 
-ファイル先頭に YAML front matter で `project: true` を記述すると、そのファイル名（`.md` 拡張子を除き、空白は `_` に置換）がタグとして全タスクに自動付与される（本文の `#tag` と合算）:
+ファイル先頭に YAML front matter で `project: active` を記述すると、そのファイル名（`.md` 拡張子を除き、空白は `_` に置換）がタグとして全タスクに自動付与される（本文の `#tag` と合算）:
 
 ```markdown
 ---
-project: true
+project: active
 ---
 
 - [ ] レビュー #urgent
     - 2026-04-12: 確認中
 ```
 
-ファイル名が `projectA.md` の場合、タスクは `#projectA` `#urgent` の 2 タグを持つ扱いになる。`project: true` が無い、または `false` の場合は本文の `#tag` だけが使われる。
+ファイル名が `projectA.md` の場合、タスクは `#projectA` `#urgent` の 2 タグを持つ扱いになる。`project` が無い、または `done` の場合は本文の `#tag` だけが使われる（`done` は完了済みプロジェクトを示すメタ情報で、タグ付けは行われない）。
 
 ### Wiki リンクナビゲーション
 

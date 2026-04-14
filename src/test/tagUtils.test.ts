@@ -48,9 +48,9 @@ suite('extractTags', () => {
 
 suite('extractFileTags', () => {
 
-	test('project: true の場合はファイル名をタグにする', () => {
+	test('project: active の場合はファイル名をタグにする', () => {
 		const result = extractFileTags(
-			['---', 'project: true', '---', '- [ ] タスク'],
+			['---', 'project: active', '---', '- [ ] タスク'],
 			'projectA.md',
 		);
 		assert.deepStrictEqual(result, ['projectA']);
@@ -58,15 +58,15 @@ suite('extractFileTags', () => {
 
 	test('ファイル名のスペースは _ に置換する', () => {
 		const result = extractFileTags(
-			['---', 'project: true', '---'],
+			['---', 'project: active', '---'],
 			'2026-04-14 会議メモ.md',
 		);
 		assert.deepStrictEqual(result, ['2026-04-14_会議メモ']);
 	});
 
-	test('project: false の場合は空配列を返す', () => {
+	test('project: done の場合は空配列を返す', () => {
 		const result = extractFileTags(
-			['---', 'project: false', '---'],
+			['---', 'project: done', '---'],
 			'projectA.md',
 		);
 		assert.deepStrictEqual(result, []);
