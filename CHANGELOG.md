@@ -4,6 +4,108 @@ All notable changes to the "taski" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.28] - 2026-04-15
+
+### Added
+
+- `[[foo]]` 形式の Wiki リンクナビゲーション（Cmd+Click で既存ファイルを開く、無ければ `$HOME/taski/note/` 配下に自動作成。`YYYY-MM-DD` はジャーナルとして扱う）
+- CLI に `taski resolve` サブコマンドを追加（Wiki リンクのパス解決）
+- front matter の `project` フラグに `active` / `done` の Status enum を導入
+
+### Fixed
+
+- Rust のバイトオフセットを UTF-16 に変換して VS Code の Range を構築
+- Markdown 言語での拡張の自動活性化
+- command URI のクエリを JSON 配列形式で渡すように修正
+
+## [0.0.27] - 2026-04-12
+
+### Added
+
+- ファイル先頭の YAML front matter `project: active` を検出し、ファイル名を全タスクに自動タグ付け
+- CLI `list --tag` が front matter 自動タグも対象
+
+## [0.0.26] - 2026-04-12
+
+### Changed
+
+- コマンドの title に `Taski` プレフィックスを付与
+- `mise download` / `install` タスクの改善
+
+## [0.0.25] - 2026-04-11
+
+### Added
+
+- CLI に `schedule` サブコマンドを追加
+- CLI に `agents-md` サブコマンドを追加
+- `list` コマンドの出力に Markdown 見出し階層のコンテキストを追加
+- `list` コマンドにタグフィルタオプションを追加
+
+### Fixed
+
+- tsconfig に mocha 型定義を追加してテストエラーを修正
+
+## [0.0.24] - 2026-04-09
+
+### Added
+
+- タスク開始時刻のアラート通知機能（`taski.taskAlert` / `taski.taskAlertLeadMinutes`）
+
+### Changed
+
+- タグ別ビューで完了済みタスクを非表示に
+
+## [0.0.23] - 2026-04-07
+
+### Changed
+
+- スケジュール表示のデフォルト時間範囲を 9:00–18:00 に変更し、範囲外のエントリがあれば自動拡張
+
+## [0.0.22] - 2026-03-26
+
+### Added
+
+- ログ内の時間範囲（例: `13:00-14:00`）のパース対応
+
+## [0.0.21] - 2026-03-26
+
+### Added
+
+- スケジュール表示で時間範囲の帯表示に対応
+
+### Changed
+
+- VS Code engine のバージョンを `^1.110.0` に更新
+
+## [0.0.20] - 2026-03-21
+
+### Added
+
+- スケジュールグリッド機能（Webview, 15 分スロットの計画 / 実績ビュー）
+- ジャーナルの時刻メモをスケジュールグリッドの実績列に表示
+- ビルド・チェック用の `mise` タスクを追加
+
+## [0.0.19] - 2026-03-21
+
+### Fixed
+
+- リリースタスクのエラーを修正
+
+## [0.0.18] - 2026-03-20
+
+### Added
+
+- CLI（`taski` バイナリ）を新規追加。サブコマンド `memo` / `list` / `journal` / `toggle` を提供
+- `list` に JSON / YAML 出力フォーマットオプション
+- パーサーロジックを `parser-core` クレートに抽出し、CLI と WASM で共有
+- `buildTreeData` WASM 関数を追加し、グルーピング・フィルタリング・ソートを Rust 側に移譲
+
+## [0.0.17] - 2026-02-26
+
+### Added
+
+- タグ別 TreeView（`TagTreeProvider`）とタグ抽出ユーティリティ
+
 ## [0.0.16] - 2026-02-15
 
 ### Added
