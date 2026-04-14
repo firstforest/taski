@@ -276,7 +276,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Wiki リンクプロバイダの登録
 	const wikiLinkProviderDisposable = vscode.languages.registerDocumentLinkProvider(
-		{ scheme: 'file', language: 'markdown' },
+		'markdown',
 		new WikiLinkDocumentLinkProvider()
 	);
 	context.subscriptions.push(wikiLinkProviderDisposable);

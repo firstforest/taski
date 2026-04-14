@@ -20,9 +20,13 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
 		const text = document.getText();
 		const matches = parseWikiLinks(text);
 		const links: vscode.DocumentLink[] = [];
+		const bytes = new TextEncoder().encode(text);
+		const decoder = new TextDecoder();
+		const byteToUtf16 = (byteOffset: number): number =>
+			decoder.decode(bytes.slice(0, byteOffset)).length;
 		for (const m of matches) {
-			const startPos = document.positionAt(m.start);
-			const endPos = document.positionAt(m.end);
+			const startPos = document.positionAt(byteToUtf16(m.start));
+			const endPos = document.positionAt(byteToUtf16(m.end));
 			const range = new vscode.Range(startPos, endPos);
 			const args: OpenWikiLinkArgs = { name: m.name, fromUri: document.uri.toString() };
 			const target = vscode.Uri.parse(
