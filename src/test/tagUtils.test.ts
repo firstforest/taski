@@ -48,41 +48,40 @@ suite('extractTags', () => {
 
 suite('extractFileTags', () => {
 
-	test('front matter のタグを抽出する', () => {
-		const result = extractFileTags([
-			'---',
-			'tags:',
-			'  - projectA',
-			'  - work',
-			'---',
-			'- [ ] タスク',
-		]);
-		assert.deepStrictEqual(result, ['projectA', 'work']);
+	test('project: true の場合はファイル名をタグにする', () => {
+		const result = extractFileTags(
+			['---', 'project: true', '---', '- [ ] タスク'],
+			'projectA.md',
+		);
+		assert.deepStrictEqual(result, ['projectA']);
 	});
 
-	test('front matter がない場合は空配列を返す', () => {
-		const result = extractFileTags(['- [ ] タスク']);
+	test('ファイル名のスペースは _ に置換する', () => {
+		const result = extractFileTags(
+			['---', 'project: true', '---'],
+			'2026-04-14 会議メモ.md',
+		);
+		assert.deepStrictEqual(result, ['2026-04-14_会議メモ']);
+	});
+
+	test('project: false の場合は空配列を返す', () => {
+		const result = extractFileTags(
+			['---', 'project: false', '---'],
+			'projectA.md',
+		);
 		assert.deepStrictEqual(result, []);
 	});
 
-	test('#プレフィクスを除去する', () => {
-		const result = extractFileTags(['---', 'tags:', '  - "#projectA"', '---']);
-		assert.deepStrictEqual(result, ['projectA']);
+	test('front matter がない場合は空配列を返す', () => {
+		const result = extractFileTags(['- [ ] タスク'], 'projectA.md');
+		assert.deepStrictEqual(result, []);
 	});
 
-	test('空要素をスキップする', () => {
-		const result = extractFileTags([
-			'---',
-			'tags:',
-			'  - projectA',
-			'  - ""',
-			'---',
-		]);
-		assert.deepStrictEqual(result, ['projectA']);
-	});
-
-	test('tagsが配列でない場合は空配列を返す', () => {
-		const result = extractFileTags(['---', 'tags: projectA', '---']);
+	test('旧仕様の tags フィールドは無視される', () => {
+		const result = extractFileTags(
+			['---', 'tags:', '  - old', '---'],
+			'projectA.md',
+		);
 		assert.deepStrictEqual(result, []);
 	});
 });

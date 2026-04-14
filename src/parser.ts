@@ -70,6 +70,6 @@ export function extractTags(text: string): string[] {
 	return wasmExtractTags(text) as string[];
 }
 
-export function extractFileTags(lines: string[]): string[] {
-	return wasmExtractFileTags(lines) as string[];
+export function extractFileTags(lines: string[], fileName: string): string[] {
+	return wasmExtractFileTags(lines, fileName) as string[];
 }

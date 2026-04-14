@@ -67,7 +67,7 @@ taski list --tag work --format json
 - `-f, --format <FORMAT>` — 出力フォーマット（`json` または `yaml`）
 - `-t, --tag <TAG>` — 指定タグを含むタスクのみ表示（`#` は不要、例: `--tag work`）
 
-ファイル冒頭の YAML front matter で `tags: [projectA, work]` のように宣言したタグも `--tag` フィルタの対象になる。
+ファイル冒頭の YAML front matter に `project: true` を指定した場合、そのファイル名（`.md` 拡張子を除き、空白は `_` に置換）がタグとして全タスクに自動付与され、`--tag` フィルタの対象になる。
 
 **表示ルール:**
 - 今日の日付のタスクは完了・未完了の両方を表示

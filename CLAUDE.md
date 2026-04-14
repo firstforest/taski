@@ -67,20 +67,18 @@ Log lines must be indented deeper than their parent task line. Tasks are display
 
 ### ファイル単位の自動タグ
 
-ファイル先頭に YAML front matter で `tags` を記述すると、そのファイル内の全タスクにタグが自動付与される（本文の `#tag` と合算）:
+ファイル先頭に YAML front matter で `project: true` を記述すると、そのファイル名（`.md` 拡張子を除き、空白は `_` に置換）がタグとして全タスクに自動付与される（本文の `#tag` と合算）:
 
 ```markdown
 ---
-tags:
-  - projectA
-  - work
+project: true
 ---
 
 - [ ] レビュー #urgent
     - 2026-04-12: 確認中
 ```
 
-上記の場合、タスクは `#projectA` `#work` `#urgent` の 3 タグを持つ扱いになる。
+ファイル名が `projectA.md` の場合、タスクは `#projectA` `#urgent` の 2 タグを持つ扱いになる。`project: true` が無い、または `false` の場合は本文の `#tag` だけが使われる。
 
 ## Configuration Settings
 

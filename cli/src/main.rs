@@ -226,7 +226,13 @@ fn list_tasks(format: Option<String>, tag: Option<String>) {
 
     let file_tags_by_uri: std::collections::HashMap<String, Vec<String>> = files
         .iter()
-        .map(|f| (f.file_uri.clone(), extract_file_tags(&f.lines)))
+        .map(|f| {
+            let base_name = std::path::Path::new(&f.file_uri)
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_default();
+            (f.file_uri.clone(), extract_file_tags(&f.lines, &base_name))
+        })
         .collect();
 
     let today_str = Local::now().format("%Y-%m-%d").to_string();

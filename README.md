@@ -94,20 +94,18 @@ Markdown ファイルに以下の形式でタスクとログを記述します:
 
 ### ファイル単位の自動タグ
 
-Markdown ファイルの先頭に YAML front matter で `tags` を記述すると、そのファイル内の全タスクにタグが自動付与されます（本文中の `#tag` 記法と合算されます）。
+Markdown ファイルの先頭に YAML front matter で `project: true` を記述すると、そのファイル名（`.md` 拡張子を除き、空白は `_` に置換）がタグとして全タスクに自動付与されます（本文中の `#tag` 記法と合算されます）。
 
 ```markdown
 ---
-tags:
-  - projectA
-  - work
+project: true
 ---
 
 - [ ] レビュー #urgent
     - 2026-04-12: 確認中
 ```
 
-上記の場合、タスクは `#projectA` `#work` `#urgent` の 3 タグとして扱われ、タグ別ビューや CLI の `--tag` フィルタでヒットします。
+ファイル名が `projectA.md` の場合、上記タスクは `#projectA` `#urgent` の 2 タグとして扱われ、タグ別ビューや CLI の `--tag` フィルタでヒットします。`project: true` が無い場合は本文中の `#tag` だけが対象になります。
 
 ## 要件
 

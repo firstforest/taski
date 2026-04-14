@@ -138,10 +138,10 @@ export class TagTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 				lines.push(doc.lineAt(i).text);
 			}
 			const tasksInFile = parseTasksAllDates(lines);
-			const fileTags = extractFileTags(lines);
 
 			const relativePath = vscode.workspace.asRelativePath(fileUri);
 			const fileName = path.basename(relativePath);
+			const fileTags = extractFileTags(lines, fileName);
 
 			// タスクテキストの重複を除外するためにユニークなタスクを特定
 			// parseTasksAllDates はログごとにエントリを返すため、同じタスクが複数回出現する
