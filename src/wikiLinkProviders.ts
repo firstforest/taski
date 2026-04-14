@@ -26,7 +26,7 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
 			const range = new vscode.Range(startPos, endPos);
 			const args: OpenWikiLinkArgs = { name: m.name, fromUri: document.uri.toString() };
 			const target = vscode.Uri.parse(
-				`command:taski.openWikiLink?${encodeURIComponent(JSON.stringify(args))}`
+				`command:taski.openWikiLink?${encodeURIComponent(JSON.stringify([args]))}`
 			);
 			const link = new vscode.DocumentLink(range, target);
 			link.tooltip = `Open [[${m.name}]]`;
