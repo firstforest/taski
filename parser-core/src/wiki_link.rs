@@ -1,5 +1,6 @@
 use regex::Regex;
 use serde::Serialize;
+use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -30,6 +31,23 @@ pub fn normalize_wiki_name(raw: &str) -> NormalizedName {
         name: without_ext,
         is_journal,
     }
+}
+
+pub fn resolve_wiki_link(name: &str, candidates: &[PathBuf]) -> Option<PathBuf> {
+    let target = Path::new(name)
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| name.to_string());
+
+    for candidate in candidates {
+        let stem = candidate
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string());
+        if stem.as_deref() == Some(target.as_str()) {
+            return Some(candidate.clone());
+        }
+    }
+    None
 }
 
 pub fn parse_wiki_links(text: &str) -> Vec<WikiLinkMatch> {
@@ -118,5 +136,43 @@ mod tests {
     fn test_normalize_trims_whitespace() {
         let got = normalize_wiki_name("  foo  ");
         assert_eq!(got.name, "foo");
+    }
+
+    #[test]
+    fn test_resolve_finds_first_match() {
+        let candidates = vec![
+            PathBuf::from("/home/u/taski/foo.md"),
+            PathBuf::from("/home/u/work/foo.md"),
+        ];
+        let got = resolve_wiki_link("foo", &candidates);
+        assert_eq!(got, Some(PathBuf::from("/home/u/taski/foo.md")));
+    }
+
+    #[test]
+    fn test_resolve_matches_stem_ignoring_extension() {
+        let candidates = vec![PathBuf::from("/a/foo.md")];
+        assert_eq!(
+            resolve_wiki_link("foo", &candidates),
+            Some(PathBuf::from("/a/foo.md"))
+        );
+    }
+
+    #[test]
+    fn test_resolve_returns_none_when_absent() {
+        let candidates = vec![PathBuf::from("/a/bar.md")];
+        assert_eq!(resolve_wiki_link("foo", &candidates), None);
+    }
+
+    #[test]
+    fn test_resolve_matches_journal_date() {
+        let candidates = vec![PathBuf::from(
+            "/home/u/taski/journal/2026/04/2026-04-14.md",
+        )];
+        assert_eq!(
+            resolve_wiki_link("2026-04-14", &candidates),
+            Some(PathBuf::from(
+                "/home/u/taski/journal/2026/04/2026-04-14.md"
+            ))
+        );
     }
 }
