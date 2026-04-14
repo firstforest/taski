@@ -50,6 +50,24 @@ pub fn resolve_wiki_link(name: &str, candidates: &[PathBuf]) -> Option<PathBuf> 
     None
 }
 
+pub fn wiki_link_create_path(name: &str, is_journal: bool, taski_home: &Path) -> PathBuf {
+    if is_journal {
+        let year = &name[0..4];
+        let month = &name[5..7];
+        taski_home
+            .join("journal")
+            .join(year)
+            .join(month)
+            .join(format!("{name}.md"))
+    } else {
+        taski_home.join("note").join(format!("{name}.md"))
+    }
+}
+
+pub fn wiki_link_initial_content(name: &str) -> String {
+    format!("# {name}\n")
+}
+
 pub fn parse_wiki_links(text: &str) -> Vec<WikiLinkMatch> {
     let re = Regex::new(r"\[\[([^\[\]|]+?)\]\]").unwrap();
     re.captures_iter(text)
@@ -174,5 +192,27 @@ mod tests {
                 "/home/u/taski/journal/2026/04/2026-04-14.md"
             ))
         );
+    }
+
+    #[test]
+    fn test_create_path_note() {
+        let home = PathBuf::from("/home/u/taski");
+        let got = wiki_link_create_path("foo", false, &home);
+        assert_eq!(got, PathBuf::from("/home/u/taski/note/foo.md"));
+    }
+
+    #[test]
+    fn test_create_path_journal() {
+        let home = PathBuf::from("/home/u/taski");
+        let got = wiki_link_create_path("2026-04-14", true, &home);
+        assert_eq!(
+            got,
+            PathBuf::from("/home/u/taski/journal/2026/04/2026-04-14.md")
+        );
+    }
+
+    #[test]
+    fn test_initial_content() {
+        assert_eq!(wiki_link_initial_content("foo"), "# foo\n");
     }
 }
