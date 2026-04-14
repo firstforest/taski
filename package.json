@@ -68,6 +68,10 @@
         "command": "taski.showSchedule",
         "title": "Taski: Show Schedule Grid",
         "icon": "$(calendar)"
+      },
+      {
+        "command": "taski.openWikiLink",
+        "title": "Taski: Open Wiki Link (internal)"
       }
     ],
     "keybindings": [
@@ -106,6 +110,12 @@
           "command": "taski.showSchedule",
           "when": "view == taskiView",
           "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "taski.openWikiLink",
+          "when": "false"
         }
       ]
     },
