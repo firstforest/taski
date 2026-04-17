@@ -37,7 +37,8 @@
       "Bash(MISE_LOG_LEVEL=debug mise env -C /Users/firstforest/workspace/taski)",
       "Bash(mise run:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m ':*)"
+      "Bash(git commit -m ':*)",
+      "Bash(mise r *)"
     ]
   }
 }

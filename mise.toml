@@ -35,8 +35,8 @@ run = "npm run check-types && npm run lint"
 
 [tasks.download]
 run = [
-    "rm -f *.vsix",
-    "gh release download --pattern '*.vsix'",
+    "node scripts/clean-vsix.js",
+    "gh release download --pattern *.vsix",
 ]
 
 [tasks.install]
