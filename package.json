@@ -74,6 +74,10 @@
       {
         "command": "taski.openWikiLink",
         "title": "Taski: Open Wiki Link (internal)"
+      },
+      {
+        "command": "taski.openWikiLinkAtCursor",
+        "title": "Taski: Open Wiki Link at Cursor"
       }
     ],
     "keybindings": [
@@ -93,6 +97,12 @@
         "command": "taski.toggleTask",
         "key": "ctrl+shift+x",
         "mac": "cmd+shift+x",
+        "when": "editorTextFocus && editorLangId == markdown"
+      },
+      {
+        "command": "taski.openWikiLinkAtCursor",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
         "when": "editorTextFocus && editorLangId == markdown"
       }
     ],

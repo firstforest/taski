@@ -63,6 +63,35 @@ function rankCandidate(uri: vscode.Uri): number {
 	return 3;
 }
 
+export async function openWikiLinkAtCursor(): Promise<void> {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		return;
+	}
+	const document = editor.document;
+	if (document.languageId !== 'markdown') {
+		return;
+	}
+	const text = document.getText();
+	const matches = parseWikiLinks(text);
+	if (matches.length === 0) {
+		return;
+	}
+	const cursorOffset = document.offsetAt(editor.selection.active);
+	const bytes = new TextEncoder().encode(text);
+	const decoder = new TextDecoder();
+	const byteToUtf16 = (byteOffset: number): number =>
+		decoder.decode(bytes.slice(0, byteOffset)).length;
+	for (const m of matches) {
+		const startUtf16 = byteToUtf16(m.start);
+		const endUtf16 = byteToUtf16(m.end);
+		if (cursorOffset >= startUtf16 && cursorOffset <= endUtf16) {
+			await openWikiLink({ name: m.name, fromUri: document.uri.toString() });
+			return;
+		}
+	}
+}
+
 export async function openWikiLink(args: OpenWikiLinkArgs): Promise<void> {
 	const normalized = normalizeWikiName(args.name);
 	const allUris = await findAllMarkdownUris();
