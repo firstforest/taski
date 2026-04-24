@@ -101,8 +101,8 @@
       },
       {
         "command": "taski.openWikiLinkAtCursor",
-        "key": "ctrl+enter",
-        "mac": "cmd+enter",
+        "key": "ctrl+shift+o",
+        "mac": "cmd+shift+o",
         "when": "editorTextFocus && editorLangId == markdown"
       }
     ],
