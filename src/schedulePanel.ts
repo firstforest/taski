@@ -188,8 +188,8 @@ export class SchedulePanel {
 					const completedClass = e.isCompleted ? ' completed' : '';
 					tableRows += `<tr${rowClass}>
 						${rowIdx === 0 ? `<td class="time-cell" rowspan="${totalEntries}">${slot}</td>` : ''}
-						<td class="plan-cell band-cell${completedClass}" rowspan="${band.spanCount}">${escapeHtml(e.taskText)}${e.logText ? '<br><span class="band-log">' + escapeHtml(e.logText) + '</span>' : ''}</td>
-						${rowIdx === 0 && !isBandContinuation ? '<td class="actual-cell"></td>' : ''}
+						<td class="plan-cell band-cell${completedClass}" rowspan="${band.spanCount}">${escapeHtml(e.taskText)}</td>
+						${rowIdx === 0 && !isBandContinuation ? `<td class="actual-cell">${escapeHtml(e.logText)}</td>` : ''}
 					</tr>\n`;
 					rowIdx++;
 				}
@@ -298,10 +298,6 @@ export class SchedulePanel {
 			background-color: var(--vscode-editor-selectionBackground);
 			border-left: 3px solid var(--vscode-focusBorder);
 			vertical-align: middle;
-		}
-		.band-log {
-			color: var(--vscode-descriptionForeground);
-			font-size: 0.9em;
 		}
 	</style>
 </head>
