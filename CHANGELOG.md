@@ -4,6 +4,13 @@ All notable changes to the "taski" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.31] - 2026-04-25
+
+### Added
+
+- コードブロック内のタスクを解析対象から除外するようにしました
+- `mise run release` で CHANGELOG を自動生成するようにしました
+
 ## [0.0.28] - 2026-04-15
 
 ### Added
