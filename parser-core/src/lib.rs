@@ -100,11 +100,21 @@ pub struct ScheduleEntry {
 pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTask> {
     let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
     let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+\d{1,2}:\d{2}(?:-\d{1,2}:\d{2})?)?:\s*(.*)").unwrap();
+    let fence_re = Regex::new(r"^\s*(```|~~~)").unwrap();
 
     let mut tasks: Vec<ParsedTask> = Vec::new();
     let mut current_task: Option<CurrentTask> = None;
+    let mut in_code_block = false;
 
     for (i, text) in lines.iter().enumerate() {
+        if fence_re.is_match(text) {
+            in_code_block = !in_code_block;
+            continue;
+        }
+        if in_code_block {
+            continue;
+        }
+
         if let Some(caps) = task_re.captures(text) {
             current_task = Some(CurrentTask {
                 indent: caps[1].len(),
@@ -141,13 +151,23 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
     let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
     let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+\d{1,2}:\d{2}(?:-\d{1,2}:\d{2})?)?:\s*(.*)").unwrap();
     let heading_re = Regex::new(r"^(#{1,6})\s+(.*)").unwrap();
+    let fence_re = Regex::new(r"^\s*(```|~~~)").unwrap();
 
     let mut tasks: Vec<ParsedTaskWithDate> = Vec::new();
     let mut current_task: Option<CurrentTask> = None;
     let mut current_task_has_log = false;
     let mut current_headings: Vec<String> = Vec::new();
+    let mut in_code_block = false;
 
     for (i, text) in lines.iter().enumerate() {
+        if fence_re.is_match(text) {
+            in_code_block = !in_code_block;
+            continue;
+        }
+        if in_code_block {
+            continue;
+        }
+
         if let Some(caps) = heading_re.captures(text) {
             let level = caps[1].len();
             current_headings.truncate(level - 1);
@@ -375,6 +395,7 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
         Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{1,2}:\d{2})(?:-(\d{1,2}:\d{2}))?)?:\s*(.*)").unwrap();
     let time_memo_re = Regex::new(r"^- (\d{1,2}:\d{2}): (.+)").unwrap();
     let heading_date_re = Regex::new(r"^#\s+(\d{4}-\d{2}-\d{2})").unwrap();
+    let fence_re = Regex::new(r"^\s*(```|~~~)").unwrap();
 
     // ジャーナルファイルの日付見出しが target_date と一致するか判定
     let is_target_date_file = lines.iter().any(|line| {
@@ -385,8 +406,17 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
 
     let mut entries: Vec<ScheduleEntry> = Vec::new();
     let mut current_task: Option<CurrentTask> = None;
+    let mut in_code_block = false;
 
     for (i, text) in lines.iter().enumerate() {
+        if fence_re.is_match(text) {
+            in_code_block = !in_code_block;
+            continue;
+        }
+        if in_code_block {
+            continue;
+        }
+
         if let Some(caps) = task_re.captures(text) {
             current_task = Some(CurrentTask {
                 indent: caps[1].len(),
@@ -680,6 +710,54 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_tasks_in_code_block_ignored() {
+        let l = lines(&[
+            "- [ ] 通常タスク",
+            "    - 2026-02-01: ログ",
+            "```",
+            "- [ ] コードブロック内タスク",
+            "    - 2026-02-01: コード内ログ",
+            "```",
+            "- [ ] コードブロック後タスク",
+            "    - 2026-02-01: 後ログ",
+        ]);
+        let result = parse_tasks_internal(&l, "2026-02-01");
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].text, "通常タスク");
+        assert_eq!(result[1].text, "コードブロック後タスク");
+    }
+
+    #[test]
+    fn test_parse_tasks_in_tilde_fence_ignored() {
+        let l = lines(&[
+            "~~~",
+            "- [ ] チルダフェンス内",
+            "    - 2026-02-01: ログ",
+            "~~~",
+            "- [ ] フェンス外",
+            "    - 2026-02-01: 外ログ",
+        ]);
+        let result = parse_tasks_internal(&l, "2026-02-01");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].text, "フェンス外");
+    }
+
+    #[test]
+    fn test_parse_tasks_in_code_block_with_lang() {
+        let l = lines(&[
+            "```markdown",
+            "- [ ] 例として書かれたタスク",
+            "    - 2026-02-01: 例ログ",
+            "```",
+            "- [ ] 実タスク",
+            "    - 2026-02-01: 実ログ",
+        ]);
+        let result = parse_tasks_internal(&l, "2026-02-01");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].text, "実タスク");
+    }
+
+    #[test]
     fn test_parse_tasks_nested() {
         let l = lines(&[
             "- [ ] 親タスク",
@@ -774,6 +852,36 @@ mod tests {
         assert_eq!(result[1].date, "");
         assert_eq!(result[2].text, "タスク3");
         assert_eq!(result[2].date, "2026-01-30");
+    }
+
+    #[test]
+    fn test_parse_all_dates_in_code_block_ignored() {
+        let l = lines(&[
+            "- [ ] 実タスク",
+            "    - 2026-02-01: ログ",
+            "```",
+            "- [ ] コード内タスク",
+            "    - 2026-02-01: コード内ログ",
+            "```",
+        ]);
+        let result = parse_all_dates_internal(&l);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].text, "実タスク");
+    }
+
+    #[test]
+    fn test_parse_all_dates_heading_in_code_block_ignored() {
+        // コードブロック内の見出しは context として扱わない
+        let l = lines(&[
+            "# 本物の見出し",
+            "```",
+            "## コード内見出し",
+            "```",
+            "- [ ] タスク",
+        ]);
+        let result = parse_all_dates_internal(&l);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].context, vec!["本物の見出し"]);
     }
 
     // --- parse_all_dates_internal context tests ---
@@ -1050,6 +1158,36 @@ mod tests {
         let result = parse_schedule_internal(&l, "2026-03-21");
         assert_eq!(result.len(), 1);
         assert!(result[0].is_completed);
+    }
+
+    #[test]
+    fn test_parse_schedule_in_code_block_ignored() {
+        let l = lines(&[
+            "- [ ] 実タスク",
+            "    - 2026-03-21 09:00: 朝",
+            "```",
+            "- [ ] コード内タスク",
+            "    - 2026-03-21 10:00: コード内ログ",
+            "```",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].task_text, "実タスク");
+    }
+
+    #[test]
+    fn test_parse_schedule_time_memo_in_code_block_ignored() {
+        let l = lines(&[
+            "# 2026-03-21",
+            "",
+            "- 09:00: 通常メモ",
+            "```",
+            "- 10:00: コード内メモ",
+            "```",
+        ]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].log_text, "通常メモ");
     }
 
     // --- parse_schedule_internal time memo tests ---
