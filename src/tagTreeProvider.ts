@@ -7,7 +7,6 @@ import { extractTags, extractFileTags } from './tagUtils';
 type TagNodeType = 'tag' | 'file' | 'task';
 
 interface TagTaskData {
-	isCompleted: boolean;
 	text: string;
 	fileUri: string;
 	line: number;
@@ -36,11 +35,7 @@ export class TagTreeItem extends vscode.TreeItem {
 		} else if (nodeType === 'file') {
 			this.iconPath = new vscode.ThemeIcon('file-text', new vscode.ThemeColor('charts.blue'));
 		} else if (nodeType === 'task' && task) {
-			if (task.isCompleted) {
-				this.iconPath = new vscode.ThemeIcon('pass', new vscode.ThemeColor('charts.green'));
-			} else {
-				this.iconPath = new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.yellow'));
-			}
+			this.iconPath = new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.yellow'));
 			this.command = {
 				command: 'taski.openTaskLocation',
 				title: 'タスクの場所を開く',
@@ -114,10 +109,7 @@ export class TagTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 	}
 
 	private getTaskNodes(fileGroup: TagFileGroup): TagTreeItem[] {
-		// 未完了優先でソート
-		const sorted = [...fileGroup.tasks].sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted));
-
-		return sorted.map(task => new TagTreeItem(
+		return fileGroup.tasks.map(task => new TagTreeItem(
 			'task',
 			task.text,
 			vscode.TreeItemCollapsibleState.None,
@@ -164,7 +156,6 @@ export class TagTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 				}
 
 				const taskData: TagTaskData = {
-					isCompleted: task.isCompleted,
 					text: task.text,
 					fileUri: fileUri.toString(),
 					line: task.line
