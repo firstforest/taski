@@ -7,6 +7,8 @@ import { TagTreeProvider } from './tagTreeProvider';
 import { SchedulePanel } from './schedulePanel';
 import { TaskAlertManager } from './taskAlertManager';
 import { WikiLinkDocumentLinkProvider, openWikiLink, openWikiLinkAtCursor } from './wikiLinkProviders';
+import { WikiLinkCompletionProvider } from './wikiLinkCompletion';
+import { invalidateMarkdownCache } from './fileScanner';
 
 export interface ParsedTask {
 	isCompleted: boolean;
@@ -298,6 +300,51 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 	context.subscriptions.push(openWikiLinkAtCursorDisposable);
+
+	// [[ 補完プロバイダの登録
+	const wikiLinkCompletionDisposable = vscode.languages.registerCompletionItemProvider(
+		{ scheme: '*', language: 'markdown' },
+		new WikiLinkCompletionProvider(),
+		'['
+	);
+	context.subscriptions.push(wikiLinkCompletionDisposable);
+
+	// md ファイル変更を監視してキャッシュを invalidate
+	const watchTargets: vscode.GlobPattern[] = [];
+	watchTargets.push(new vscode.RelativePattern(
+		vscode.Uri.file(path.join(os.homedir(), 'taski')), '**/*.md'
+	));
+	const additionalDirs = vscode.workspace
+		.getConfiguration('taski')
+		.get<string[]>('additionalDirectories', []);
+	for (const dir of additionalDirs) {
+		watchTargets.push(new vscode.RelativePattern(vscode.Uri.file(dir), '**/*.md'));
+	}
+	if (vscode.workspace.getConfiguration('taski').get<boolean>('includeWorkspace', false)) {
+		watchTargets.push('**/*.md');
+	}
+	for (const pattern of watchTargets) {
+		const watcher = vscode.workspace.createFileSystemWatcher(pattern);
+		watcher.onDidCreate(() => invalidateMarkdownCache());
+		watcher.onDidDelete(() => invalidateMarkdownCache());
+		context.subscriptions.push(watcher);
+	}
+
+	context.subscriptions.push(
+		vscode.workspace.onDidRenameFiles(() => invalidateMarkdownCache())
+	);
+
+	context.subscriptions.push(
+		vscode.workspace.onDidChangeConfiguration((e) => {
+			if (
+				e.affectsConfiguration('taski.includeWorkspace') ||
+				e.affectsConfiguration('taski.additionalDirectories') ||
+				e.affectsConfiguration('taski.excludeDirectories')
+			) {
+				invalidateMarkdownCache();
+			}
+		})
+	);
 }
 
 // ローカルタイムゾーンで YYYY-MM-DD を取得する関数

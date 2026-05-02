@@ -40,7 +40,7 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
 	}
 }
 
-function rankCandidate(uri: vscode.Uri): number {
+export function rankCandidate(uri: vscode.Uri): number {
 	const taskiHome = path.join(os.homedir(), 'taski');
 	const fs = uri.fsPath;
 	if (fs.startsWith(taskiHome + path.sep) || fs === taskiHome) {

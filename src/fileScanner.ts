@@ -41,6 +41,28 @@ export async function findMarkdownFilesInDirectory(dirUri: vscode.Uri, excludePa
 	return results;
 }
 
+let cachedUris: vscode.Uri[] | null = null;
+let pendingScan: Promise<vscode.Uri[]> | null = null;
+
+export async function findAllMarkdownUrisCached(): Promise<vscode.Uri[]> {
+	if (cachedUris) {
+		return cachedUris;
+	}
+	if (pendingScan) {
+		return pendingScan;
+	}
+	pendingScan = findAllMarkdownUris().then((uris) => {
+		cachedUris = uris;
+		pendingScan = null;
+		return uris;
+	});
+	return pendingScan;
+}
+
+export function invalidateMarkdownCache(): void {
+	cachedUris = null;
+}
+
 export async function findAllMarkdownUris(): Promise<vscode.Uri[]> {
 	const config = vscode.workspace.getConfiguration('taski');
 	const excludeDirs: string[] = config.get<string[]>('excludeDirectories', []);
