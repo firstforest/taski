@@ -4,6 +4,11 @@ All notable changes to the "taski" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.32] - 2026-05-03
+
+### Added
+- Markdown で `[[` を入力した際に、既存ノートを補完候補として表示するようにしました。
+
 ## [0.0.31] - 2026-04-25
 
 ### Added
