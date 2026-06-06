@@ -33,6 +33,16 @@ export class SchedulePanel {
 
 		this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
+		this.panel.webview.onDidReceiveMessage(
+			(message) => {
+				if (message?.command === 'refresh') {
+					this.refresh();
+				}
+			},
+			null,
+			this.disposables
+		);
+
 		this.refresh();
 	}
 
@@ -316,6 +326,14 @@ export class SchedulePanel {
 			${noTimeRows}
 		</tbody>
 	</table>
+	<script nonce="${nonce}">
+		const vscode = acquireVsCodeApi();
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'r' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+				vscode.postMessage({ command: 'refresh' });
+			}
+		});
+	</script>
 </body>
 </html>`;
 	}
