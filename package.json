@@ -165,7 +165,7 @@
           "default": 1,
           "minimum": 0,
           "maximum": 30,
-          "description": "タスク開始の何分前にアラートを表示するか（デフォルト: 5分）"
+          "description": "タスク開始の何分前にアラートを表示するか（デフォルト: 1分）"
         },
         "taski.gitAutoSync": {
           "type": "boolean",
