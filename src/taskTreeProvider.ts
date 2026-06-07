@@ -33,9 +33,11 @@ export class TaskTreeItem extends vscode.TreeItem {
 		} else if (nodeType === 'file') {
 			this.iconPath = new vscode.ThemeIcon('file-text', new vscode.ThemeColor('charts.blue'));
 		} else if (nodeType === 'task' && task) {
-			// 完了: 緑、未完了: 黄色
-			if (task.isCompleted) {
+			// 完了: 緑、見送り: グレー、未完了: 黄色
+			if (task.status === 'completed') {
 				this.iconPath = new vscode.ThemeIcon('pass', new vscode.ThemeColor('charts.green'));
+			} else if (task.status === 'cancelled') {
+				this.iconPath = new vscode.ThemeIcon('circle-slash', new vscode.ThemeColor('disabledForeground'));
 			} else {
 				this.iconPath = new vscode.ThemeIcon('circle-outline', new vscode.ThemeColor('charts.yellow'));
 			}

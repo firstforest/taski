@@ -10,8 +10,21 @@ import { WikiLinkDocumentLinkProvider, openWikiLink, openWikiLinkAtCursor } from
 import { WikiLinkCompletionProvider } from './wikiLinkCompletion';
 import { invalidateMarkdownCache } from './fileScanner';
 
+/**
+ * タスクの状態。
+ * - `incomplete`: `- [ ]` 未完了
+ * - `completed`: `- [x]` 完了
+ * - `cancelled`: `- [-]` 見送り（着手予定だったが着手せず、やらない or 別所へ繰り越し済み）
+ */
+export type TaskStatus = 'incomplete' | 'completed' | 'cancelled';
+
+/** 完了扱い（完了 or 見送り）。もう対応不要な状態かどうかを判定する。 */
+export function isClosed(status: TaskStatus): boolean {
+	return status === 'completed' || status === 'cancelled';
+}
+
 export interface ParsedTask {
-	isCompleted: boolean;
+	status: TaskStatus;
 	text: string;
 	line: number;
 	log: string;
@@ -95,7 +108,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 		for (let i = cursorLine; i >= 0; i--) {
 			const lineText = document.lineAt(i).text;
-			const taskMatch = lineText.match(/^(\s*)-\s*\[([ x])\]\s*/);
+			const taskMatch = lineText.match(/^(\s*)-\s*\[([ x-])\]\s*/);
 			if (taskMatch) {
 				taskLineIndex = i;
 				taskIndent = taskMatch[1].length;
@@ -149,7 +162,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(addTomorrowLogDisposable);
 
-	// タスクの完了状態をトグルするコマンド
+	// タスクの状態を切り替えるコマンド（3状態サイクル: [ ] → [x] → [-] → [ ]）
 	const toggleTaskDisposable = vscode.commands.registerCommand('taski.toggleTask', async () => {
 		const editor = vscode.window.activeTextEditor;
 		if (!editor) {
@@ -160,12 +173,13 @@ export function activate(context: vscode.ExtensionContext) {
 		const cursorLine = editor.selection.active.line;
 		const lineText = document.lineAt(cursorLine).text;
 
-		const taskMatch = lineText.match(/^(\s*-\s*\[)([ x])(\]\s*.*)/);
+		const taskMatch = lineText.match(/^(\s*-\s*\[)([ x-])(\]\s*.*)/);
 		if (!taskMatch) {
 			return;
 		}
 
-		const newState = taskMatch[2] === 'x' ? ' ' : 'x';
+		// [ ] → [x] → [-] → [ ] の順に巡回
+		const newState = taskMatch[2] === ' ' ? 'x' : taskMatch[2] === 'x' ? '-' : ' ';
 		const newText = taskMatch[1] + newState + taskMatch[3];
 
 		await editor.edit(editBuilder => {

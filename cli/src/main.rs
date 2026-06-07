@@ -2,7 +2,7 @@ use chrono::Local;
 use clap::{Parser, Subcommand};
 use parser_core::{
     build_schedule_data_internal, build_tree_data_internal, extract_file_tags, extract_tags,
-    FileInput, TreeDateGroup,
+    FileInput, TaskStatus, TreeDateGroup,
 };
 use std::fs;
 use std::fs::OpenOptions;
@@ -300,10 +300,10 @@ fn list_tasks(format: Option<String>, tag: Option<String>) {
         for file_group in &date_group.file_groups {
             println!("  \x1b[36m{}\x1b[0m", file_group.file_name);
             for task in &file_group.tasks {
-                let checkbox = if task.is_completed {
-                    "\x1b[32m[x]\x1b[0m"
-                } else {
-                    "\x1b[33m[ ]\x1b[0m"
+                let checkbox = match task.status {
+                    TaskStatus::Completed => "\x1b[32m[x]\x1b[0m",
+                    TaskStatus::Cancelled => "\x1b[2m[-]\x1b[0m",
+                    TaskStatus::Incomplete => "\x1b[33m[ ]\x1b[0m",
                 };
                 let context_str = if task.context.is_empty() {
                     String::new()
@@ -401,10 +401,10 @@ fn show_schedule(format: Option<String>, date: Option<String>) {
             "--:--".to_string()
         };
 
-        let checkbox = if entry.is_completed {
-            "\x1b[32m[x]\x1b[0m"
-        } else {
-            "\x1b[33m[ ]\x1b[0m"
+        let checkbox = match entry.status {
+            TaskStatus::Completed => "\x1b[32m[x]\x1b[0m",
+            TaskStatus::Cancelled => "\x1b[2m[-]\x1b[0m",
+            TaskStatus::Incomplete => "\x1b[33m[ ]\x1b[0m",
         };
 
         if entry.task_text.is_empty() {
@@ -473,25 +473,22 @@ fn toggle_line(line: &str) -> Option<String> {
         return None;
     }
 
-    // "[ ]" or "[x]" をチェック
+    // "[ ]" / "[x]" / "[-]" をチェック
     let check_char = bytes.get(bracket_pos + 1)?;
     if bytes.get(bracket_pos + 2) != Some(&b']') {
         return None;
     }
 
-    match check_char {
-        b' ' => {
-            let mut result = line.to_string();
-            result.replace_range(bracket_pos..bracket_pos + 3, "[x]");
-            Some(result)
-        }
-        b'x' => {
-            let mut result = line.to_string();
-            result.replace_range(bracket_pos..bracket_pos + 3, "[ ]");
-            Some(result)
-        }
-        _ => None,
-    }
+    // 3状態サイクル: [ ] → [x] → [-] → [ ]
+    let next = match check_char {
+        b' ' => "[x]",
+        b'x' => "[-]",
+        b'-' => "[ ]",
+        _ => return None,
+    };
+    let mut result = line.to_string();
+    result.replace_range(bracket_pos..bracket_pos + 3, next);
+    Some(result)
 }
 
 fn toggle_task(file: &PathBuf, line_num: usize) {
@@ -681,9 +678,17 @@ mod tests {
     }
 
     #[test]
-    fn test_toggle_line_complete_to_incomplete() {
+    fn test_toggle_line_complete_to_cancelled() {
         assert_eq!(
             toggle_line("- [x] タスク名"),
+            Some("- [-] タスク名".to_string())
+        );
+    }
+
+    #[test]
+    fn test_toggle_line_cancelled_to_incomplete() {
+        assert_eq!(
+            toggle_line("- [-] タスク名"),
             Some("- [ ] タスク名".to_string())
         );
     }
@@ -734,7 +739,7 @@ mod tests {
 
     #[test]
     fn test_filter_tree_by_tag() {
-        use parser_core::{TreeDateGroup, TreeFileGroup, TreeTaskData};
+        use parser_core::{TaskStatus, TreeDateGroup, TreeFileGroup, TreeTaskData};
 
         let tree = vec![TreeDateGroup {
             date_key: "2026-04-09".to_string(),
@@ -747,7 +752,7 @@ mod tests {
                 file_uri: "/test.md".to_string(),
                 tasks: vec![
                     TreeTaskData {
-                        is_completed: false,
+                        status: TaskStatus::Incomplete,
                         text: "タスクA #work".to_string(),
                         file_uri: "/test.md".to_string(),
                         line: 1,
@@ -756,7 +761,7 @@ mod tests {
                         context: vec![],
                     },
                     TreeTaskData {
-                        is_completed: false,
+                        status: TaskStatus::Incomplete,
                         text: "タスクB #personal".to_string(),
                         file_uri: "/test.md".to_string(),
                         line: 2,
@@ -776,7 +781,7 @@ mod tests {
 
     #[test]
     fn test_filter_tree_by_tag_no_match() {
-        use parser_core::{TreeDateGroup, TreeFileGroup, TreeTaskData};
+        use parser_core::{TaskStatus, TreeDateGroup, TreeFileGroup, TreeTaskData};
 
         let tree = vec![TreeDateGroup {
             date_key: "2026-04-09".to_string(),
@@ -788,7 +793,7 @@ mod tests {
                 file_name: "test.md".to_string(),
                 file_uri: "/test.md".to_string(),
                 tasks: vec![TreeTaskData {
-                    is_completed: false,
+                    status: TaskStatus::Incomplete,
                     text: "タスクA #work".to_string(),
                     file_uri: "/test.md".to_string(),
                     line: 1,
@@ -805,7 +810,7 @@ mod tests {
 
     #[test]
     fn test_filter_tree_by_tag_with_file_tags() {
-        use parser_core::{TreeDateGroup, TreeFileGroup, TreeTaskData};
+        use parser_core::{TaskStatus, TreeDateGroup, TreeFileGroup, TreeTaskData};
         use std::collections::HashMap;
 
         let tree = vec![TreeDateGroup {
@@ -818,7 +823,7 @@ mod tests {
                 file_name: "projectA.md".to_string(),
                 file_uri: "/projectA.md".to_string(),
                 tasks: vec![TreeTaskData {
-                    is_completed: false,
+                    status: TaskStatus::Incomplete,
                     text: "本文にタグなしタスク".to_string(),
                     file_uri: "/projectA.md".to_string(),
                     line: 3,

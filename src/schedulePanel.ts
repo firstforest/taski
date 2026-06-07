@@ -3,6 +3,7 @@ import * as path from 'path';
 import { findAllMarkdownUris } from './fileScanner';
 import { buildScheduleData } from './parser';
 import type { FileInput, ScheduleEntry } from './parser';
+import { isClosed } from './extension';
 
 export class SchedulePanel {
 	public static currentPanel: SchedulePanel | undefined;
@@ -195,7 +196,7 @@ export class SchedulePanel {
 				// 帯エントリ（開始スロット）
 				for (const band of bandStarts) {
 					const e = band.entry;
-					const completedClass = e.isCompleted ? ' completed' : '';
+					const completedClass = isClosed(e.status) ? ' completed' : '';
 					tableRows += `<tr${rowClass}>
 						${rowIdx === 0 ? `<td class="time-cell" rowspan="${totalEntries}">${slot}</td>` : ''}
 						<td class="plan-cell band-cell${completedClass}" rowspan="${band.spanCount}">${escapeHtml(e.taskText)}</td>
@@ -205,7 +206,7 @@ export class SchedulePanel {
 				}
 				// 通常のエントリ
 				for (const e of slotEntries) {
-					const completedClass = e.isCompleted ? ' completed' : '';
+					const completedClass = isClosed(e.status) ? ' completed' : '';
 					tableRows += `<tr${rowClass}>
 						${rowIdx === 0 ? `<td class="time-cell" rowspan="${totalEntries}">${slot}</td>` : ''}
 						<td class="plan-cell${completedClass}">${escapeHtml(e.taskText)}</td>
@@ -221,7 +222,7 @@ export class SchedulePanel {
 		if (noTimeEntries.length > 0) {
 			for (let j = 0; j < noTimeEntries.length; j++) {
 				const e = noTimeEntries[j];
-				const completedClass = e.isCompleted ? ' completed' : '';
+				const completedClass = isClosed(e.status) ? ' completed' : '';
 				noTimeRows += `<tr>
 					${j === 0 ? `<td class="time-cell" rowspan="${noTimeEntries.length}">--:--</td>` : ''}
 					<td class="plan-cell${completedClass}">${escapeHtml(e.taskText)}</td>

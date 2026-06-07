@@ -5,11 +5,36 @@ use std::collections::HashMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+// === Task status ===
+
+/// タスクの状態。
+/// - `Incomplete`: `- [ ]` 未完了
+/// - `Completed`: `- [x]` 完了
+/// - `Cancelled`: `- [-]` 見送り（着手予定だったが着手せず、やらない or 別所へ繰り越し済み）
+#[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum TaskStatus {
+    Incomplete,
+    Completed,
+    Cancelled,
+}
+
+impl TaskStatus {
+    /// チェックボックスのマーカー文字（` ` / `x` / `-`）から状態を判定する。
+    fn from_marker(marker: &str) -> Self {
+        match marker {
+            "x" => TaskStatus::Completed,
+            "-" => TaskStatus::Cancelled,
+            _ => TaskStatus::Incomplete,
+        }
+    }
+}
+
 // === Internal types ===
 
 struct CurrentTask {
     indent: usize,
-    completed: bool,
+    status: TaskStatus,
     text: String,
     line: usize,
     context: Vec<String>,
@@ -20,7 +45,7 @@ struct CurrentTask {
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsedTask {
-    pub is_completed: bool,
+    pub status: TaskStatus,
     pub text: String,
     pub line: usize,
     pub log: String,
@@ -29,7 +54,7 @@ pub struct ParsedTask {
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsedTaskWithDate {
-    pub is_completed: bool,
+    pub status: TaskStatus,
     pub text: String,
     pub line: usize,
     pub log: String,
@@ -51,7 +76,7 @@ pub struct FileInput {
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct TreeTaskData {
-    pub is_completed: bool,
+    pub status: TaskStatus,
     pub text: String,
     pub file_uri: String,
     pub line: usize,
@@ -87,7 +112,7 @@ pub struct TreeDateGroup {
 pub struct ScheduleEntry {
     pub task_text: String,
     pub task_line: usize,
-    pub is_completed: bool,
+    pub status: TaskStatus,
     pub log_text: String,
     pub log_line: usize,
     pub time: String,
@@ -98,7 +123,7 @@ pub struct ScheduleEntry {
 // === Parsing logic ===
 
 pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTask> {
-    let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
+    let task_re = Regex::new(r"^(\s*)-\s*\[([ x-])\]\s*(.*)").unwrap();
     let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+\d{1,2}:\d{2}(?:-\d{1,2}:\d{2})?)?:\s*(.*)").unwrap();
     let fence_re = Regex::new(r"^\s*(```|~~~)").unwrap();
 
@@ -118,7 +143,7 @@ pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTa
         if let Some(caps) = task_re.captures(text) {
             current_task = Some(CurrentTask {
                 indent: caps[1].len(),
-                completed: &caps[2] == "x",
+                status: TaskStatus::from_marker(&caps[2]),
                 text: caps[3].to_string(),
                 line: i,
                 context: vec![],
@@ -134,7 +159,7 @@ pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTa
 
                 if date_str == target_date && date_indent > ct.indent {
                     tasks.push(ParsedTask {
-                        is_completed: ct.completed,
+                        status: ct.status,
                         text: ct.text.clone(),
                         line: ct.line,
                         log: log_content.to_string(),
@@ -148,7 +173,7 @@ pub fn parse_tasks_internal(lines: &[String], target_date: &str) -> Vec<ParsedTa
 }
 
 pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
-    let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
+    let task_re = Regex::new(r"^(\s*)-\s*\[([ x-])\]\s*(.*)").unwrap();
     let date_re = Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+\d{1,2}:\d{2}(?:-\d{1,2}:\d{2})?)?:\s*(.*)").unwrap();
     let heading_re = Regex::new(r"^(#{1,6})\s+(.*)").unwrap();
     let fence_re = Regex::new(r"^\s*(```|~~~)").unwrap();
@@ -179,7 +204,7 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
             if let Some(ref ct) = current_task {
                 if !current_task_has_log {
                     tasks.push(ParsedTaskWithDate {
-                        is_completed: ct.completed,
+                        status: ct.status,
                         text: ct.text.clone(),
                         line: ct.line,
                         log: String::new(),
@@ -190,7 +215,7 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
             }
             current_task = Some(CurrentTask {
                 indent: caps[1].len(),
-                completed: &caps[2] == "x",
+                status: TaskStatus::from_marker(&caps[2]),
                 text: caps[3].to_string(),
                 line: i,
                 context: current_headings.clone(),
@@ -207,7 +232,7 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
 
                 if date_indent > ct.indent {
                     tasks.push(ParsedTaskWithDate {
-                        is_completed: ct.completed,
+                        status: ct.status,
                         text: ct.text.clone(),
                         line: ct.line,
                         log: log_content.to_string(),
@@ -223,7 +248,7 @@ pub fn parse_all_dates_internal(lines: &[String]) -> Vec<ParsedTaskWithDate> {
     if let Some(ref ct) = current_task {
         if !current_task_has_log {
             tasks.push(ParsedTaskWithDate {
-                is_completed: ct.completed,
+                status: ct.status,
                 text: ct.text.clone(),
                 line: ct.line,
                 log: String::new(),
@@ -253,7 +278,7 @@ pub fn build_tree_data_internal(files: Vec<FileInput>, today_str: &str) -> Vec<T
                 .entry(t.date.clone())
                 .or_default()
                 .push(TreeTaskData {
-                    is_completed: t.is_completed,
+                    status: t.status,
                     text: t.text,
                     file_uri: file.file_uri.clone(),
                     line: t.line,
@@ -281,10 +306,21 @@ pub fn build_tree_data_internal(files: Vec<FileInput>, today_str: &str) -> Vec<T
         let mut total_count = 0;
 
         for (file_name, file_uri, mut tasks) in groups {
-            total_count += tasks.len();
-            completed_count += tasks.iter().filter(|t| t.is_completed).count();
-            // 未完了を先にソート
-            tasks.sort_by_key(|t| t.is_completed);
+            // 見送り(Cancelled)はカウント母数に含めない（中立）
+            total_count += tasks
+                .iter()
+                .filter(|t| t.status != TaskStatus::Cancelled)
+                .count();
+            completed_count += tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::Completed)
+                .count();
+            // 未完了→完了→見送り の順にソート
+            tasks.sort_by_key(|t| match t.status {
+                TaskStatus::Incomplete => 0,
+                TaskStatus::Completed => 1,
+                TaskStatus::Cancelled => 2,
+            });
             file_groups.push(TreeFileGroup {
                 file_name,
                 file_uri,
@@ -318,8 +354,10 @@ pub fn build_tree_data_internal(files: Vec<FileInput>, today_str: &str) -> Vec<T
         let mut has_incomplete = false;
 
         for (file_name, file_uri, tasks) in groups {
-            let incomplete_tasks: Vec<TreeTaskData> =
-                tasks.into_iter().filter(|t| !t.is_completed).collect();
+            let incomplete_tasks: Vec<TreeTaskData> = tasks
+                .into_iter()
+                .filter(|t| t.status == TaskStatus::Incomplete)
+                .collect();
             if !incomplete_tasks.is_empty() {
                 has_incomplete = true;
                 file_groups.push(TreeFileGroup {
@@ -348,8 +386,10 @@ pub fn build_tree_data_internal(files: Vec<FileInput>, today_str: &str) -> Vec<T
         let mut has_incomplete = false;
 
         for (file_name, file_uri, tasks) in groups {
-            let incomplete_tasks: Vec<TreeTaskData> =
-                tasks.into_iter().filter(|t| !t.is_completed).collect();
+            let incomplete_tasks: Vec<TreeTaskData> = tasks
+                .into_iter()
+                .filter(|t| t.status == TaskStatus::Incomplete)
+                .collect();
             if !incomplete_tasks.is_empty() {
                 has_incomplete = true;
                 file_groups.push(TreeFileGroup {
@@ -390,7 +430,7 @@ fn pad_time(time: &str) -> String {
 }
 
 pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<ScheduleEntry> {
-    let task_re = Regex::new(r"^(\s*)-\s*\[([ x])\]\s*(.*)").unwrap();
+    let task_re = Regex::new(r"^(\s*)-\s*\[([ x-])\]\s*(.*)").unwrap();
     let date_re =
         Regex::new(r"^(\s*)-\s*(\d{4}-\d{2}-\d{2})(?:\s+(\d{1,2}:\d{2})(?:-(\d{1,2}:\d{2}))?)?:\s*(.*)").unwrap();
     let time_memo_re = Regex::new(r"^- (\d{1,2}:\d{2}): (.+)").unwrap();
@@ -420,7 +460,7 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
         if let Some(caps) = task_re.captures(text) {
             current_task = Some(CurrentTask {
                 indent: caps[1].len(),
-                completed: &caps[2] == "x",
+                status: TaskStatus::from_marker(&caps[2]),
                 text: caps[3].to_string(),
                 line: i,
                 context: vec![],
@@ -443,7 +483,7 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
                     entries.push(ScheduleEntry {
                         task_text: ct.text.clone(),
                         task_line: ct.line,
-                        is_completed: ct.completed,
+                        status: ct.status,
                         log_text: log_content.to_string(),
                         log_line: i,
                         time: time_padded,
@@ -464,7 +504,7 @@ pub fn parse_schedule_internal(lines: &[String], target_date: &str) -> Vec<Sched
                 entries.push(ScheduleEntry {
                     task_text: String::new(),
                     task_line: i,
-                    is_completed: false,
+                    status: TaskStatus::Incomplete,
                     log_text: memo_text.to_string(),
                     log_line: i,
                     time: time_padded,
@@ -591,7 +631,7 @@ mod tests {
         let l = lines(&["- [ ] タスクA", "    - 2026-02-01: ログA"]);
         let result = parse_tasks_internal(&l, "2026-02-01");
         assert_eq!(result.len(), 1);
-        assert!(!result[0].is_completed);
+        assert_eq!(result[0].status, TaskStatus::Incomplete);
         assert_eq!(result[0].text, "タスクA");
         assert_eq!(result[0].log, "ログA");
         assert_eq!(result[0].line, 0);
@@ -602,7 +642,7 @@ mod tests {
         let l = lines(&["- [x] 完了タスク", "    - 2026-02-01: 完了ログ"]);
         let result = parse_tasks_internal(&l, "2026-02-01");
         assert_eq!(result.len(), 1);
-        assert!(result[0].is_completed);
+        assert_eq!(result[0].status, TaskStatus::Completed);
         assert_eq!(result[0].text, "完了タスク");
         assert_eq!(result[0].log, "完了ログ");
     }
@@ -632,7 +672,7 @@ mod tests {
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].text, "タスク1");
         assert_eq!(result[1].text, "タスク2");
-        assert!(result[1].is_completed);
+        assert_eq!(result[1].status, TaskStatus::Completed);
     }
 
     #[test]
@@ -952,8 +992,78 @@ mod tests {
         let tasks = &result[0].file_groups[0].tasks;
         assert_eq!(tasks.len(), 2);
         // 未完了が先
-        assert!(!tasks[0].is_completed);
-        assert!(tasks[1].is_completed);
+        assert_eq!(tasks[0].status, TaskStatus::Incomplete);
+        assert_eq!(tasks[1].status, TaskStatus::Completed);
+    }
+
+    #[test]
+    fn test_parse_tasks_cancelled() {
+        let l = lines(&["- [-] 見送りタスク", "    - 2026-02-01: ログ"]);
+        let result = parse_tasks_internal(&l, "2026-02-01");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].status, TaskStatus::Cancelled);
+        assert_eq!(result[0].text, "見送りタスク");
+    }
+
+    #[test]
+    fn test_build_tree_data_today_cancelled_shown_not_counted() {
+        // 見送り(Cancelled)は今日ビューに表示されるが、カウント母数(分母・分子)に含めない
+        let files = vec![FileInput {
+            file_name: s("test.md"),
+            file_uri: s("file:///test.md"),
+            lines: lines(&[
+                "- [ ] 未完了タスク",
+                "    - 2026-02-01: ログ1",
+                "- [x] 完了タスク",
+                "    - 2026-02-01: ログ2",
+                "- [-] 見送りタスク",
+                "    - 2026-02-01: ログ3",
+            ]),
+        }];
+        let result = build_tree_data_internal(files, "2026-02-01");
+        assert_eq!(result.len(), 1);
+        // 見送りは母数に含めないので 1/2 のまま
+        assert_eq!(result[0].completed_count, 1);
+        assert_eq!(result[0].total_count, 2);
+        assert_eq!(result[0].label, "今日 (2026-02-01) (1/2)");
+        let tasks = &result[0].file_groups[0].tasks;
+        // 表示はされる（3件）。順序は 未完了→完了→見送り
+        assert_eq!(tasks.len(), 3);
+        assert_eq!(tasks[0].status, TaskStatus::Incomplete);
+        assert_eq!(tasks[1].status, TaskStatus::Completed);
+        assert_eq!(tasks[2].status, TaskStatus::Cancelled);
+    }
+
+    #[test]
+    fn test_build_tree_data_other_date_cancelled_hidden() {
+        // 他日付ビューでは見送りは未完了として扱わず非表示（完了と同じ扱い）
+        let files = vec![FileInput {
+            file_name: s("test.md"),
+            file_uri: s("file:///test.md"),
+            lines: lines(&[
+                "- [-] 見送りタスク",
+                "    - 2026-01-30: ログ1",
+                "- [ ] 未完了タスク",
+                "    - 2026-01-30: ログ2",
+            ]),
+        }];
+        let result = build_tree_data_internal(files, "2026-02-01");
+        assert_eq!(result.len(), 1);
+        let tasks = &result[0].file_groups[0].tasks;
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].status, TaskStatus::Incomplete);
+    }
+
+    #[test]
+    fn test_build_tree_data_other_date_all_cancelled_excluded() {
+        // 他日付で見送りのみなら、その日付グループごと除外される
+        let files = vec![FileInput {
+            file_name: s("test.md"),
+            file_uri: s("file:///test.md"),
+            lines: lines(&["- [-] 見送りタスク", "    - 2026-01-30: ログ"]),
+        }];
+        let result = build_tree_data_internal(files, "2026-02-01");
+        assert_eq!(result.len(), 0);
     }
 
     #[test]
@@ -974,7 +1084,7 @@ mod tests {
         assert_eq!(result[0].date_key, "2026-01-30");
         let tasks = &result[0].file_groups[0].tasks;
         assert_eq!(tasks.len(), 1);
-        assert!(!tasks[0].is_completed);
+        assert_eq!(tasks[0].status, TaskStatus::Incomplete);
     }
 
     #[test]
@@ -1074,9 +1184,9 @@ mod tests {
         }];
         let result = build_tree_data_internal(files, "2026-02-01");
         let tasks = &result[0].file_groups[0].tasks;
-        assert!(!tasks[0].is_completed);
-        assert!(tasks[1].is_completed);
-        assert!(tasks[2].is_completed);
+        assert_eq!(tasks[0].status, TaskStatus::Incomplete);
+        assert_eq!(tasks[1].status, TaskStatus::Completed);
+        assert_eq!(tasks[2].status, TaskStatus::Completed);
     }
 
     // --- parse_schedule_internal tests ---
@@ -1089,7 +1199,7 @@ mod tests {
         assert_eq!(result[0].task_text, "タスクA");
         assert_eq!(result[0].time, "09:00");
         assert_eq!(result[0].log_text, "ミーティング");
-        assert!(!result[0].is_completed);
+        assert_eq!(result[0].status, TaskStatus::Incomplete);
     }
 
     #[test]
@@ -1157,7 +1267,15 @@ mod tests {
         let l = lines(&["- [x] 完了タスク", "    - 2026-03-21 10:00: 完了"]);
         let result = parse_schedule_internal(&l, "2026-03-21");
         assert_eq!(result.len(), 1);
-        assert!(result[0].is_completed);
+        assert_eq!(result[0].status, TaskStatus::Completed);
+    }
+
+    #[test]
+    fn test_parse_schedule_cancelled_task() {
+        let l = lines(&["- [-] 見送りタスク", "    - 2026-03-21 10:00: 見送り"]);
+        let result = parse_schedule_internal(&l, "2026-03-21");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].status, TaskStatus::Cancelled);
     }
 
     #[test]
@@ -1205,7 +1323,7 @@ mod tests {
         assert_eq!(result[0].time, "09:30");
         assert_eq!(result[0].log_text, "散歩した");
         assert_eq!(result[0].task_text, "");
-        assert!(!result[0].is_completed);
+        assert_eq!(result[0].status, TaskStatus::Incomplete);
         assert_eq!(result[1].time, "14:00");
         assert_eq!(result[1].log_text, "コーヒー飲んだ");
     }

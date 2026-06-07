@@ -3,6 +3,7 @@ import * as path from 'path';
 import { findAllMarkdownUris } from './fileScanner';
 import { buildScheduleData } from './parser';
 import type { FileInput, ScheduleEntry } from './parser';
+import { isClosed } from './extension';
 
 export class TaskAlertManager implements vscode.Disposable {
 	private timer: ReturnType<typeof setInterval> | undefined;
@@ -50,7 +51,7 @@ export class TaskAlertManager implements vscode.Disposable {
 		}
 
 		for (const entry of entries) {
-			if (entry.time === '' || entry.isCompleted) {
+			if (entry.time === '' || isClosed(entry.status)) {
 				continue;
 			}
 

@@ -10,7 +10,7 @@ suite('parseTasks', () => {
 		];
 		const result = parseTasks(lines, '2026-02-01');
 		assert.strictEqual(result.length, 1);
-		assert.strictEqual(result[0].isCompleted, false);
+		assert.strictEqual(result[0].status, 'incomplete');
 		assert.strictEqual(result[0].text, 'タスクA');
 		assert.strictEqual(result[0].log, 'ログA');
 		assert.strictEqual(result[0].line, 0);
@@ -23,9 +23,20 @@ suite('parseTasks', () => {
 		];
 		const result = parseTasks(lines, '2026-02-01');
 		assert.strictEqual(result.length, 1);
-		assert.strictEqual(result[0].isCompleted, true);
+		assert.strictEqual(result[0].status, 'completed');
 		assert.strictEqual(result[0].text, '完了タスク');
 		assert.strictEqual(result[0].log, '完了ログ');
+	});
+
+	test('基本: 見送りタスク([-])を抽出する', () => {
+		const lines = [
+			'- [-] 見送りタスク',
+			'    - 2026-02-01: 見送りログ',
+		];
+		const result = parseTasks(lines, '2026-02-01');
+		assert.strictEqual(result.length, 1);
+		assert.strictEqual(result[0].status, 'cancelled');
+		assert.strictEqual(result[0].text, '見送りタスク');
 	});
 
 	test('対象日付以外のログは含まれない', () => {
@@ -51,7 +62,7 @@ suite('parseTasks', () => {
 		assert.strictEqual(result.length, 2);
 		assert.strictEqual(result[0].text, 'タスク1');
 		assert.strictEqual(result[1].text, 'タスク2');
-		assert.strictEqual(result[1].isCompleted, true);
+		assert.strictEqual(result[1].status, 'completed');
 	});
 
 	test('同じタスクに同一日付のログが複数ある場合、すべて抽出する', () => {

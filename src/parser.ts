@@ -11,7 +11,7 @@ import {
 	wikiLinkCreatePath as wasmWikiLinkCreatePath,
 	wikiLinkInitialContent as wasmWikiLinkInitialContent,
 } from './pkg/parser_wasm';
-import type { ParsedTask, ParsedTaskWithDate } from './extension';
+import type { ParsedTask, ParsedTaskWithDate, TaskStatus } from './extension';
 
 export interface FileInput {
 	fileName: string;
@@ -20,7 +20,7 @@ export interface FileInput {
 }
 
 export interface TreeTaskData {
-	isCompleted: boolean;
+	status: TaskStatus;
 	text: string;
 	fileUri: string;
 	line: number;
@@ -59,7 +59,7 @@ export function buildTreeData(files: FileInput[], todayStr: string): TreeDateGro
 export interface ScheduleEntry {
 	taskText: string;
 	taskLine: number;
-	isCompleted: boolean;
+	status: TaskStatus;
 	logText: string;
 	logLine: number;
 	time: string;

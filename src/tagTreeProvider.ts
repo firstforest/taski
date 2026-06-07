@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { parseTasksAllDates, ParsedTaskWithDate } from './extension';
+import { parseTasksAllDates, ParsedTaskWithDate, isClosed } from './extension';
 import { findAllMarkdownUris } from './fileScanner';
 import { extractTags, extractFileTags } from './tagUtils';
 
@@ -151,7 +151,8 @@ export class TagTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 					continue;
 				}
 
-				if (task.isCompleted) {
+				// 完了扱い（完了・見送り）は除外
+				if (isClosed(task.status)) {
 					continue;
 				}
 
