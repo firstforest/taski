@@ -4,6 +4,17 @@ All notable changes to the "taski" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.33] - 2026-06-07
+
+### Added
+
+- タスク状態に「見送り」([-]) を追加しました。着手予定だったが着手しなかったタスクを表す状態で、表示やアラートは完了と同じ扱いですが、今日ビューでは表示しつつ進捗カウントの母数には含めません。`[ ]`→`[x]`→`[-]`→`[ ]` の3状態サイクルでトグルできます。
+- スケジュール画面で `r` キーを押すと再描画して最新の状態に更新できるようにしました。
+
+### Fixed
+
+- `taskAlertLeadMinutes` の既定値の説明を実際の値（1分）に合わせて修正しました。
+
 ## [0.0.32] - 2026-05-03
 
 ### Added
